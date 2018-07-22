@@ -25,14 +25,21 @@ def _run(X_train, y_train, X_val, y_val):
     x = inputs = keras.layers.Input(shape=(101, 101, 2))
     down_list = []
     for stage, filters in enumerate([64, 128, 256, 512, 512]):
-        x = builder.conv2d(filters, strides=1 if stage == 0 else 2, use_act=False)(x)
-        for _ in range(3):
-            x = builder.res_block(filters, dropout=0.25)(x)
-        x = builder.bn_act()(x)
+        if stage == 0:
+            x = builder.conv2d(filters, strides=1, use_act=False)(x)
+        else:
+            if builder.shape(x)[-2] % 2 != 0:
+                x = tk.dl.layers.pad2d()(padding=((0, 1), (0, 1)))(x)
+            x = builder.conv2d(filters, strides=2, use_act=False)(x)
+        # for _ in range(3):
+        #     x = builder.res_block(filters, dropout=0.25)(x)
+        # x = builder.bn_act()(x)
+        x = builder.conv2d(filters)(x)
+        x = builder.conv2d(filters)(x)
         down_list.append(x)
 
     x = keras.layers.GlobalAveragePooling2D()(x)
-    x = builder.dense(16)(x)
+    x = builder.dense(32)(x)
     x = builder.act()(x)
 
     # stage 0: 101
@@ -78,6 +85,15 @@ def _run(X_train, y_train, X_val, y_val):
     # 検証
     pred_val = model.predict(X_val)
     tk.ml.print_classification_metrics(np.ravel(y_val), np.ravel(pred_val))
+
+    # 閾値の最適化
+    threshold_list = np.linspace(0.25, 0.75, 20)
+    score_list = np.array([data.compute_iou_metric(np.int32(y_val > 0.5), np.int32(pred_val > th))
+                           for th in tk.tqdm(threshold_list)])
+    best_index = score_list.argmax()
+    logger = tk.log.get(__name__)
+    logger.info(f'max score = {score_list[best_index]:.3f}')
+    logger.info(f'threshold = {threshold_list[best_index]:.3f}')
 
 
 if __name__ == '__main__':
