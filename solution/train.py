@@ -1,45 +1,24 @@
 import pathlib
 
-import cv2
 import numpy as np
-import pandas as pd
 
+import data
 import pytoolkit as tk
 
 MODELS_DIR = pathlib.Path('models')
 
-TRAIN_IMAGE_DIR = pathlib.Path('../input/train/images/')
-TRAIN_IMAGE_DIR = pathlib.Path('../input/train/images/')
-TRAIN_MASK_DIR = pathlib.Path('../input/train/masks/')
-TEST_IMAGE_DIR = pathlib.Path('../input/test/images/')
-DEPTHS_PATH = pathlib.Path('../input/depths.csv')
-
 
 def _main():
     tk.better_exceptions()
-    with tk.dl.session(use_horovod=True):
-        tk.log.init(MODELS_DIR / 'train.log')
-        _run()
-
-
-def _run():
-    train_names = [p.name for p in TRAIN_IMAGE_DIR.iterdir()]
-    train_prefixes = [p.stem for p in TRAIN_IMAGE_DIR.iterdir()]
-    X = [cv2.imread(str(TRAIN_IMAGE_DIR / p), cv2.IMREAD_GRAYSCALE) for p in tk.tqdm(train_names)]
-    X = np.array(X, dtype=np.float32) / 255
-    X = np.expand_dims(X, axis=3)
-    y = [cv2.imread(str(TRAIN_MASK_DIR / p), cv2.IMREAD_GRAYSCALE) for p in tk.tqdm(train_names)]
-    y = np.array(y, dtype=np.float32) / 255
-    y = np.expand_dims(y, axis=3)
-    df_depths = pd.read_csv(DEPTHS_PATH)
-    d = np.array([df_depths.loc[df_depths['id'] == p]['z'].values for p in tk.tqdm(train_prefixes)], dtype=np.float32)
-    d -= df_depths['z'].mean()
-    d /= df_depths['z'].std()
-    d = np.repeat(d, 101 * 101).reshape(len(X), 101, 101, 1)
-    X = np.concatenate([X, d], axis=-1)
-    print(X.shape)
+    X, y, _ = data.load_train_data()
     (X_train, y_train), (X_val, y_val) = tk.ml.split(X, y, split_seed=123, validation_split=0.2)
 
+    with tk.dl.session(use_horovod=True):
+        tk.log.init(MODELS_DIR / 'train.log')
+        _run(X_train, y_train, X_val, y_val)
+
+
+def _run(X_train, y_train, X_val, y_val):
     import keras
     builder = tk.dl.networks.Builder()
     x = inputs = keras.layers.Input(shape=(101, 101, 2))
