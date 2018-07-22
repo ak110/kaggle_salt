@@ -70,7 +70,7 @@ def _run(X_train, y_train, X_val, y_val):
     gen.add(tk.image.RandomRotate90(probability=0.5, with_output=True))
 
     model = tk.dl.models.Model(network, gen, batch_size=32)
-    model.compile(sgd_lr=0.5 / 256, loss='binary_crossentropy', metrics=['acc'])
+    model.compile(sgd_lr=0.5 / 256, loss='binary_crossentropy', metrics=[tk.dl.metrics.mean_iou])
     model.summary()
     model.plot(MODELS_DIR / 'model.svg')
 
