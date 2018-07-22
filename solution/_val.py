@@ -39,9 +39,12 @@ def _run(X_val, y_val):
 
     # 閾値の最適化
     threshold_list = np.linspace(0.25, 0.75, 20)
-    score_list = np.array([data.compute_iou_metric(np.int32(y_val > 0.5), np.int32(pred_val > th))
-                           for th in tk.tqdm(threshold_list)])
-    best_index = score_list.argmax()
+    score_list = []
+    for th in tk.tqdm(threshold_list):
+        score = data.compute_iou_metric(np.int32(y_val > 0.5), np.int32(pred_val > th))
+        logger.info(f'threshold={th:.3f}: score={score:.3f}')
+        score_list.append(score)
+    best_index = np.argmax(score_list)
     logger.info(f'max score: {score_list[best_index]:.3f}')
     logger.info(f'threshold: {threshold_list[best_index]:.3f}')
 
