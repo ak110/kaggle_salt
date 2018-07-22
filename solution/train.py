@@ -21,6 +21,7 @@ def _main():
 def _run(X_train, y_train, X_val, y_val):
     import keras
     builder = tk.dl.networks.Builder()
+
     x = inputs = keras.layers.Input(shape=(101, 101, 2))
     x = builder.conv2d(64)(x)
     x = builder.conv2d(64)(x)
