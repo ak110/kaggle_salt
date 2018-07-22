@@ -29,7 +29,7 @@ def _run(X_train, y_train, X_val, y_val):
             x = builder.conv2d(filters, strides=1, use_act=False)(x)
         else:
             if builder.shape(x)[-2] % 2 != 0:
-                x = tk.dl.layers.pad2d()(padding=((0, 1), (0, 1)))(x)
+                x = tk.dl.layers.pad2d()(padding=((0, 1), (0, 1)), mode='reflect')(x)
             x = builder.conv2d(filters, strides=2, use_act=False)(x)
         for _ in range(3):
             x = builder.res_block(filters, dropout=0.25)(x)
@@ -37,8 +37,8 @@ def _run(X_train, y_train, X_val, y_val):
         down_list.append(x)
 
     x = keras.layers.GlobalAveragePooling2D()(x)
-    x = builder.dense(32)(x)
-    x = builder.act()(x)
+    gate = builder.dense(1, activation='sigmoid')(x)
+    x = builder.dense(32, activation='elu')(x)
 
     # stage 0: 101
     # stage 1: 51
@@ -62,6 +62,7 @@ def _run(X_train, y_train, X_val, y_val):
         x = builder.conv2d(filters)(x)
 
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
+    x = keras.layers.multiply([x, gate])
     network = keras.models.Model(inputs, x)
 
     gen = tk.image.ImageDataGenerator()
