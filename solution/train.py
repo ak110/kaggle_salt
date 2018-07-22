@@ -82,18 +82,19 @@ def _run(X_train, y_train, X_val, y_val):
         cosine_annealing=True, mixup=True)
     model.save(MODELS_DIR / 'model.h5')
 
-    # 検証
-    pred_val = model.predict(X_val)
-    tk.ml.print_classification_metrics(np.ravel(y_val), np.ravel(pred_val))
+    if tk.dl.hvd.is_master():
+        # 検証
+        pred_val = model.predict(X_val)
+        tk.ml.print_classification_metrics(np.ravel(y_val), np.ravel(pred_val))
 
-    # 閾値の最適化
-    threshold_list = np.linspace(0.25, 0.75, 20)
-    score_list = np.array([data.compute_iou_metric(np.int32(y_val > 0.5), np.int32(pred_val > th))
-                           for th in tk.tqdm(threshold_list)])
-    best_index = score_list.argmax()
-    logger = tk.log.get(__name__)
-    logger.info(f'max score = {score_list[best_index]:.3f}')
-    logger.info(f'threshold = {threshold_list[best_index]:.3f}')
+        # 閾値の最適化
+        threshold_list = np.linspace(0.25, 0.75, 20)
+        score_list = np.array([data.compute_iou_metric(np.int32(y_val > 0.5), np.int32(pred_val > th))
+                               for th in tk.tqdm(threshold_list)])
+        best_index = score_list.argmax()
+        logger = tk.log.get(__name__)
+        logger.info(f'max score = {score_list[best_index]:.3f}')
+        logger.info(f'threshold = {threshold_list[best_index]:.3f}')
 
 
 if __name__ == '__main__':
