@@ -45,7 +45,7 @@ def _run(X, test_prefixes):
     df = pd.DataFrame.from_dict(pred_dict, orient='index')
     df.index.names = ['id']
     df.columns = ['rle_mask']
-    df.to_csv(str(MODELS_DIR / 'submission.csv'))
+    df.to_csv('submission.csv')
 
 
 def encode_rl(img):
