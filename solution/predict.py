@@ -5,6 +5,8 @@ import pytoolkit as tk
 
 MODELS_DIR = pathlib.Path('models')
 
+THRESHOLD = 0.671
+
 
 def _main():
     tk.better_exceptions()
@@ -21,7 +23,7 @@ def _run(X, test_prefixes):
     model = tk.dl.models.Model(network, gen, batch_size=32)
     pred = model.predict(X, verbose=1)
 
-    data.save_submission(pred, test_prefixes)
+    data.save_submission(pred, test_prefixes, THRESHOLD)
 
 
 if __name__ == '__main__':

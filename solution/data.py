@@ -6,11 +6,14 @@ import pandas as pd
 
 import pytoolkit as tk
 
-TRAIN_IMAGE_DIR = pathlib.Path('../input/train/images/')
-TRAIN_IMAGE_DIR = pathlib.Path('../input/train/images/')
-TRAIN_MASK_DIR = pathlib.Path('../input/train/masks/')
-TEST_IMAGE_DIR = pathlib.Path('../input/test/images/')
+TRAIN_IMAGE_DIR = pathlib.Path('../input/train/images')
+TRAIN_IMAGE_DIR = pathlib.Path('../input/train/images')
+TRAIN_MASK_DIR = pathlib.Path('../input/train/masks')
+TEST_IMAGE_DIR = pathlib.Path('../input/test/images')
 DEPTHS_PATH = pathlib.Path('../input/depths.csv')
+
+X_mean = 120.34612148318793
+X_std = 41.06966522016213
 
 
 def load_train_data():
@@ -18,13 +21,13 @@ def load_train_data():
     prefixes = [p.stem for p in TRAIN_IMAGE_DIR.iterdir()]
 
     X = [cv2.imread(str(TRAIN_IMAGE_DIR / p), cv2.IMREAD_GRAYSCALE) for p in tk.tqdm(names)]
-    X = np.array(X, dtype=np.float32) / 255
+    X = (np.array(X, dtype=np.float32) - X_mean) / X_std
     X = np.expand_dims(X, axis=3)
     d = _load_depths(prefixes)
     X = np.concatenate([X, d], axis=-1)
 
     y = [cv2.imread(str(TRAIN_MASK_DIR / p), cv2.IMREAD_GRAYSCALE) for p in tk.tqdm(names)]
-    y = np.array(y, dtype=np.float32) / 255
+    y = np.array(y, dtype=np.float32) / 255  # 0-1
     y = np.expand_dims(y, axis=3)
     return X, y, prefixes
 
@@ -34,7 +37,7 @@ def load_test_data():
     prefixes = [p.stem for p in TEST_IMAGE_DIR.iterdir()]
 
     X = [cv2.imread(str(TEST_IMAGE_DIR / p), cv2.IMREAD_GRAYSCALE) for p in tk.tqdm(names)]
-    X = np.array(X, dtype=np.float32) / 255
+    X = (np.array(X, dtype=np.float32) - X_mean) / X_std
     X = np.expand_dims(X, axis=3)
     d = _load_depths(prefixes)
     X = np.concatenate([X, d], axis=-1)
@@ -51,8 +54,8 @@ def _load_depths(prefixes):
     return d
 
 
-def save_submission(pred, prefixes):
-    pred_dict = {prefix: _encode_rl(np.round(pred[i, :, :, 0])) for i, prefix in enumerate(tk.tqdm(prefixes))}
+def save_submission(pred, prefixes, threshold):
+    pred_dict = {prefix: _encode_rl(pred[i, :, :, 0] >= threshold) for i, prefix in enumerate(tk.tqdm(prefixes))}
     df = pd.DataFrame.from_dict(pred_dict, orient='index')
     df.index.names = ['id']
     df.columns = ['rle_mask']
@@ -61,11 +64,11 @@ def save_submission(pred, prefixes):
 
 def _encode_rl(img):
     """ランレングス。"""
-    b = img.reshape(img.shape[0] * img.shape[1], order='F')
+    img = img.reshape(img.shape[0] * img.shape[1], order='F')
     runs = []  # list of run lengths
     r = 0  # the current run length
     pos = 1  # count starts from 1 per WK
-    for c in b:
+    for c in img:
         if c == 0:
             if r != 0:
                 runs.append((pos, r))

@@ -31,11 +31,9 @@ def _run(X_train, y_train, X_val, y_val):
             if builder.shape(x)[-2] % 2 != 0:
                 x = tk.dl.layers.pad2d()(padding=((0, 1), (0, 1)))(x)
             x = builder.conv2d(filters, strides=2, use_act=False)(x)
-        # for _ in range(3):
-        #     x = builder.res_block(filters, dropout=0.25)(x)
-        # x = builder.bn_act()(x)
-        x = builder.conv2d(filters)(x)
-        x = builder.conv2d(filters)(x)
+        for _ in range(3):
+            x = builder.res_block(filters, dropout=0.25)(x)
+        x = builder.bn_act()(x)
         down_list.append(x)
 
     x = keras.layers.GlobalAveragePooling2D()(x)
@@ -68,6 +66,7 @@ def _run(X_train, y_train, X_val, y_val):
     gen = tk.image.ImageDataGenerator()
     gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True))
     gen.add(tk.image.RandomRotate90(probability=0.5, with_output=True))
+    gen.add(tk.image.GaussianNoise(probability=0.125, scale=5 / 128))
 
     model = tk.dl.models.Model(network, gen, batch_size=32)
     model.compile(sgd_lr=0.5 / 256, loss='binary_crossentropy', metrics=[tk.dl.metrics.mean_iou])
@@ -93,8 +92,8 @@ def _run(X_train, y_train, X_val, y_val):
                                for th in tk.tqdm(threshold_list)])
         best_index = score_list.argmax()
         logger = tk.log.get(__name__)
-        logger.info(f'max score = {score_list[best_index]:.3f}')
-        logger.info(f'threshold = {threshold_list[best_index]:.3f}')
+        logger.info(f'max score: {score_list[best_index]:.3f}')
+        logger.info(f'threshold: {threshold_list[best_index]:.3f}')
 
 
 if __name__ == '__main__':
