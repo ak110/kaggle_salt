@@ -25,6 +25,7 @@ def _run(X_val, y_val):
     network = tk.dl.models.load_model(MODELS_DIR / 'model.h5', compile=False)
     gen = tk.image.ImageDataGenerator()
     model = tk.dl.models.Model(network, gen, batch_size=32)
+    model.compile(sgd_lr=0.5 / 256, loss='binary_crossentropy', metrics=[tk.dl.metrics.mean_iou])
 
     logger = tk.log.get(__name__)
     # 検証
