@@ -23,54 +23,39 @@ def _run(X_train, y_train, X_val, y_val):
     builder = tk.dl.networks.Builder()
 
     x = inputs = keras.layers.Input(shape=(101, 101, 2))
-    x = builder.conv2d(64)(x)
-    x = builder.conv2d(64)(x)
-    d1 = x
-    x = keras.layers.MaxPooling2D(padding='same')(x)  # 51
-    x = builder.conv2d(128)(x)
-    x = builder.conv2d(128)(x)
-    d2 = x
-    x = keras.layers.MaxPooling2D(padding='same')(x)  # 26
-    x = builder.conv2d(256)(x)
-    x = builder.conv2d(256)(x)
-    d3 = x
-    x = keras.layers.MaxPooling2D(padding='same')(x)  # 13
-    x = builder.conv2d(512)(x)
-    x = builder.conv2d(512)(x)
-    d4 = x
+    down_list = []
+    for stage, filters in enumerate([64, 128, 256, 512, 512]):
+        x = builder.conv2d(filters, strides=1 if stage == 0 else 2, use_act=False)(x)
+        for _ in range(3):
+            x = builder.res_block(filters, dropout=0.25)(x)
+        x = builder.bn_act()(x)
+        down_list.append(x)
 
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(16)(x)
     x = builder.act()(x)
-    x = builder.dense(512)(x)
 
-    x = keras.layers.Reshape((1, 1, 512))(x)
-    d4 = builder.conv2d(512, 1, use_act=False)(d4)
-    x = keras.layers.add([d4, x])
-    x = builder.conv2d(512)(x)
-    x = builder.conv2d(512)(x)
+    # stage 0: 101
+    # stage 1: 51
+    # stage 2: 26
+    # stage 3: 13
+    # stage 4: 7
+    for stage, d in list(enumerate(down_list))[::-1]:
+        filters = builder.shape(d)[-1]
+        if stage == 4:
+            x = keras.layers.Reshape((1, 1, -1))(x)
+        else:
+            x = builder.conv2dtr(filters // 4, 2, strides=2, use_act=False)(x)
+        if stage in (0, 1, 3):
+            x = keras.layers.Cropping2D(((0, 1), (0, 1)))(x)
+        x = builder.conv2d(filters, 1, use_act=False)(x)
+        d = builder.conv2d(filters, 1, use_act=False)(d)
+        x = keras.layers.add([x, d])
+        x = builder.bn_act()(x)
+        x = builder.conv2d(filters)(x)
+        x = builder.conv2d(filters)(x)
 
-    x = builder.conv2dtr(256, 2, strides=2, use_act=False)(x)
-    d3 = builder.conv2d(256, 1, use_act=False)(d3)
-    x = keras.layers.add([d3, x])
-    x = builder.conv2d(256)(x)
-    x = builder.conv2d(256)(x)
-
-    x = builder.conv2dtr(128, 2, strides=2, use_act=False)(x)
-    x = keras.layers.Cropping2D(((0, 1), (0, 1)))(x)
-    d2 = builder.conv2d(128, 1, use_act=False)(d2)
-    x = keras.layers.add([d2, x])
-    x = builder.conv2d(128)(x)
-    x = builder.conv2d(128)(x)
-
-    x = builder.conv2dtr(64, 2, strides=2, use_act=False)(x)
-    x = keras.layers.Cropping2D(((0, 1), (0, 1)))(x)
-    d1 = builder.conv2d(64, 1, use_act=False)(d1)
-    x = keras.layers.add([d1, x])
-    x = builder.conv2d(64)(x)
-    x = builder.conv2d(64)(x)
-
-    x = builder.conv2d(1, use_bn=False, activation='sigmoid')(x)
+    x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     network = keras.models.Model(inputs, x)
 
     gen = tk.image.ImageDataGenerator()
@@ -80,6 +65,7 @@ def _run(X_train, y_train, X_val, y_val):
     model = tk.dl.models.Model(network, gen, batch_size=32)
     model.compile(sgd_lr=0.5 / 256, loss='binary_crossentropy', metrics=['acc'])
     model.summary()
+    model.plot(MODELS_DIR / 'model.svg')
 
     # 学習
     model.fit(
