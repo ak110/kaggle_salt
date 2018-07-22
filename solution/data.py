@@ -54,12 +54,12 @@ def _load_depths(prefixes):
     return d
 
 
-def save_submission(pred, prefixes, threshold):
+def save_submission(save_path, pred, prefixes, threshold):
     pred_dict = {prefix: _encode_rl(pred[i, :, :, 0] >= threshold) for i, prefix in enumerate(tk.tqdm(prefixes))}
     df = pd.DataFrame.from_dict(pred_dict, orient='index')
     df.index.names = ['id']
     df.columns = ['rle_mask']
-    df.to_csv('submission.csv')
+    df.to_csv(str(save_path))
 
 
 def _encode_rl(img):
