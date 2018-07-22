@@ -94,16 +94,24 @@ def _run():
     network = keras.models.Model(inputs, x)
 
     gen = tk.image.ImageDataGenerator()
+    gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True))
+    gen.add(tk.image.RandomRotate90(probability=0.5, with_output=True))
+
     model = tk.dl.models.Model(network, gen, batch_size=32)
     model.compile(sgd_lr=0.5 / 256, loss='binary_crossentropy', metrics=['acc'])
     model.summary()
 
+    # 学習
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
         epochs=300,
         tsv_log_path=MODELS_DIR / 'history.tsv',
         cosine_annealing=True, mixup=True)
-    model.save('model.h5')
+    model.save(MODELS_DIR / 'model.h5')
+
+    # 検証
+    pred_val = model.predict(X_val)
+    tk.ml.print_classification_metrics(np.ravel(y_val), np.ravel(pred_val))
 
 
 if __name__ == '__main__':
