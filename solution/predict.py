@@ -6,7 +6,7 @@ import pytoolkit as tk
 
 MODELS_DIR = pathlib.Path('models')
 
-THRESHOLD = 0.671
+THRESHOLD = 0.513
 
 
 def _main():
