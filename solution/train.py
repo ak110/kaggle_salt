@@ -106,7 +106,7 @@ def _run():
         X_train, y_train, validation_data=(X_val, y_val),
         epochs=300,
         tsv_log_path=MODELS_DIR / 'history.tsv',
-        cosine_annealing=True, mixup=True)
+        cosine_annealing=True)
     model.save(MODELS_DIR / 'model.h5')
 
     # 検証
