@@ -57,6 +57,7 @@ def _run(X_train, y_train, X_val, y_val):
         d = builder.conv2d(filters, 1, use_act=False)(d)
         x = keras.layers.add([x, d])
         x = builder.bn_act()(x)
+        x = keras.layers.Dropout(0.25)(x)
         x = builder.conv2d(filters)(x)
         x = builder.conv2d(filters)(x)
 
