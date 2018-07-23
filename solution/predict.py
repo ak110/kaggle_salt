@@ -12,7 +12,6 @@ THRESHOLD = 0.513
 def _main():
     tk.better_exceptions()
     X, test_prefixes = data.load_test_data()
-
     with tk.dl.session():
         tk.log.init(MODELS_DIR / 'predict.log')
         _run(X, test_prefixes)
@@ -27,7 +26,6 @@ def _run(X, test_prefixes):
     model = tk.dl.models.Model(network, gen, batch_size=32)
 
     pred = model.predict(X, verbose=1)
-
     data.save_submission(MODELS_DIR / 'submission.csv', pred, test_prefixes, THRESHOLD)
 
 

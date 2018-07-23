@@ -26,14 +26,14 @@ def _run(X_train, y_train, X_val, y_val):
     ]
     x = inputs[0]
     down_list = []
-    for stage, filters in enumerate([64, 128, 256, 512, 512]):
+    for stage, (filters, blocks) in enumerate(zip([64, 128, 256, 512, 512], [2, 3, 4, 4, 2])):
         if stage == 0:
             x = builder.conv2d(filters, strides=1, use_act=False)(x)
         else:
             if builder.shape(x)[-2] % 2 != 0:
                 x = tk.dl.layers.pad2d()(padding=((0, 1), (0, 1)), mode='reflect')(x)
             x = builder.conv2d(filters, strides=2, use_act=False)(x)
-        for _ in range(4):
+        for _ in range(blocks):
             x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.bn_act()(x)
         down_list.append(x)

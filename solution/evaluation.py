@@ -12,18 +12,15 @@ def log_evaluation(y_val, pred_val):
     # 閾値の最適化
     logger = tk.log.get(__name__)
     threshold_list = np.linspace(0.25, 0.75, 20)
-    score1_list = []
-    score2_list = []
+    score_list = []
     for th in threshold_list:
-        score1 = compute_iou_metric(np.int32(y_val > 0.5), np.int32(pred_val > th))
-        score2 = compute_score(np.int32(y_val > 0.5), np.int32(pred_val > th))
-        score1_list.append(score1)
-        score2_list.append(score2)
-        logger.info(f'threshold={th:.3f}: score1={score1:.3f} score2={score2:.3f}')
-    best_index1 = np.argmax(score1_list)
-    best_index2 = np.argmax(score2_list)
-    logger.info(f'max score1: {score_list[best_index1]:.3f} (threshold: {threshold_list[best_index1]:.3f})')
-    logger.info(f'max score2: {score_list[best_index2]:.3f} (threshold: {threshold_list[best_index2]:.3f})')
+        score = compute_iou_metric(np.int32(y_val > 0.5), np.int32(pred_val > th))
+        score_list.append(score)
+    best_index = np.argmax(score_list)
+    logger.info(f'max score: {score_list[best_index]:.3f} (threshold: {threshold_list[best_index]:.3f})')
+    logger.info('scores:')
+    for th, score in zip(threshold_list, score_list):
+        logger.info(f'  threshold={th:.3f}: score={score:.3f}')
 
 
 def compute_iou_metric(y_true, y_pred):
@@ -80,23 +77,3 @@ def _iou_metric_single(y_true, y_pred, print_table=False):
     if print_table:
         print("AP\t-\t-\t-\t{:1.3f}".format(np.mean(prec)))
     return np.mean(prec)
-
-
-def compute_score(y_true, y_pred):
-    """素直に実装してみたつもりのもの。(怪)
-
-    https://www.kaggle.com/c/tgs-salt-identification-challenge#evaluation
-    """
-    assert len(y_true.shape) == 4
-    assert len(y_pred.shape) == 4
-    t = np.sum(y_true, axis=(1, 2, 3)) != 0
-    prec_list = []
-    for iou_threshold in np.arange(0.5, 1.0, 0.05):
-        iou = np.mean(np.logical_and(y_true, y_pred) / np.logical_or(y_true, y_pred), axis=(1, 2, 3))
-        p = iou >= iou_threshold
-        tp = np.logical_and(t, p)
-        fp = np.logical_and(np.logical_not(t), p)
-        fn = np.logical_and(np.logical_not(t), np.logical_not(p))
-        prec = tp / (tp + fp + fn)
-        prec_list.append(prec)
-    return np.mean(prec_list)
