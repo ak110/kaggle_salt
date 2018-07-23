@@ -27,6 +27,7 @@ def load_train_data(cv_count=5, cv_index=0):
     y = np.expand_dims(y, axis=3)
 
     ti, vi = tk.ml.cv_indices(X, y, cv_count=cv_count, cv_index=cv_index, split_seed=123)
+    tk.log.get(__name__).info(f'cv_index={cv_index}: train={len(ti)} val={len(vi)}')
     return ([X[ti], d[ti]], y[ti]), ([X[vi], d[vi]], y[vi])
 
 

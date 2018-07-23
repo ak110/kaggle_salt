@@ -1,30 +1,44 @@
 #!/usr/bin/env python3
+import argparse
 import pathlib
+
+import sklearn.externals.joblib as joblib
 
 import data
 import evaluation
 import pytoolkit as tk
 
-MODELS_DIR = pathlib.Path('models')
+MODELS_DIR = pathlib.Path('models/model_1')
 
 
 def _main():
     tk.better_exceptions()
-    (X_train, y_train), (X_val, y_val) = data.load_train_data()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--cv-index', default=0, choices=range(5), type=int)
+    parser.add_argument('--batch-size', default=32, type=int)
+    parser.add_argument('--epochs', default=300, type=int)
+    args = parser.parse_args()
     with tk.dl.session(use_horovod=True):
-        tk.log.init(MODELS_DIR / 'train.log')
-        _run(X_train, y_train, X_val, y_val)
+        tk.log.init(MODELS_DIR / 'train.fold{args.cv_index}.log')
+        _run(args)
 
 
-def _run(X_train, y_train, X_val, y_val):
+def _run(args):
+    (X_train, y_train), (X_val, y_val) = data.load_train_data(cv_index=args.cv_index)
+
     import keras
     builder = tk.dl.networks.Builder()
 
     inputs = [
-        keras.layers.Input(shape=(101, 101, 1)),
-        keras.layers.Input(shape=(1,)),
+        builder.input_tensor((101, 101, 1)),
+        builder.input_tensor((1,)),
     ]
     x = inputs[0]
+    x = builder.preprocess()(x)
+    d = inputs[1]
+    d = keras.layers.RepeatVector(101 * 101)(d)
+    d = keras.layers.Reshape((101, 101, 1))(d)
+    x = keras.layers.concatenate([x, d])
     down_list = []
     for stage, (filters, blocks) in enumerate(zip([64, 128, 256, 512, 512], [2, 3, 4, 4, 2])):
         if stage == 0:
@@ -39,12 +53,10 @@ def _run(X_train, y_train, X_val, y_val):
         down_list.append(x)
 
     x = keras.layers.GlobalAveragePooling2D()(x)
-    x = builder.dense(32)(x)
-    x = builder.bn(center=False, scale=False)(x)
-    x = keras.layers.concatenate([x, inputs[1]])
+    gate = builder.dense(1, activation='sigmoid')(x)
     x = builder.dense(32)(x)
     x = builder.act()(x)
-    gate = builder.dense(1, activation='sigmoid')(x)
+    x = keras.layers.Reshape((1, 1, -1))(x)
 
     # stage 0: 101
     # stage 1: 51
@@ -54,7 +66,6 @@ def _run(X_train, y_train, X_val, y_val):
     for stage, d in list(enumerate(down_list))[::-1]:
         filters = builder.shape(d)[-1]
         if stage == 4:
-            x = keras.layers.Reshape((1, 1, -1))(x)
             x = builder.conv2dtr(32, 7)(x)
         else:
             x = builder.conv2dtr(filters // 4, 2, strides=2)(x)
@@ -79,24 +90,21 @@ def _run(X_train, y_train, X_val, y_val):
     gen.add(tk.image.RandomCrop(probability=1, with_output=True), input_index=0)
     gen.add(tk.image.Resize((101, 101), with_output=True), input_index=0)
     gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True), input_index=0)
-    gen.add(tk.image.RandomErasing(probability=0.5), input_index=0)
 
-    model = tk.dl.models.Model(network, gen, batch_size=32)
+    model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
     model.compile(sgd_lr=0.5 / 256, loss='binary_crossentropy', metrics=['acc'])
     model.summary()
     model.plot(MODELS_DIR / 'model.svg')
-
-    # 学習
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
-        epochs=300,
-        tsv_log_path=MODELS_DIR / 'history.tsv',
+        epochs=args.epochs,
+        tsv_log_path=MODELS_DIR / 'history.fold{args.cv_index}.tsv',
         cosine_annealing=True, mixup=True)
-    model.save(MODELS_DIR / 'model.h5')
+    model.save(MODELS_DIR / 'model.fold{args.cv_index}.h5')
 
     if tk.dl.hvd.is_master():
-        # 検証
         pred_val = model.predict(X_val)
+        joblib.dump(pred_val, MODELS_DIR / 'pred-val.fold{args.cv_index}.h5')
         evaluation.log_evaluation(y_val, pred_val)
 
 
