@@ -2,4 +2,5 @@ input/*/
 input/*.zip
 input/*.csv
 solution/models/
+solution/models_*/
 
