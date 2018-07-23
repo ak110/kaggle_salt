@@ -77,6 +77,7 @@ def _run(X_train, y_train, X_val, y_val):
     gen.add(tk.image.RandomPadding(probability=1, with_output=True), input_index=0)
     gen.add(tk.image.RandomRotate(probability=0.25, with_output=True), input_index=0)
     gen.add(tk.image.RandomCrop(probability=1, with_output=True), input_index=0)
+    gen.add(tk.image.Resize((101, 101), with_output=True), input_index=0)
     gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True), input_index=0)
     gen.add(tk.image.RandomErasing(probability=0.5), input_index=0)
 
