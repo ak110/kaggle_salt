@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 import pathlib
 
-import numpy as np
-
 import data
+import evaluation
 import pytoolkit as tk
 
 MODELS_DIR = pathlib.Path('models')
@@ -11,9 +10,7 @@ MODELS_DIR = pathlib.Path('models')
 
 def _main():
     tk.better_exceptions()
-    X, y, _ = data.load_train_data()
-    (X_train, y_train), (X_val, y_val) = tk.ml.split(X, y, split_seed=123, validation_split=0.2)
-
+    (X_train, y_train), (X_val, y_val) = data.load_train_data()
     with tk.dl.session(use_horovod=True):
         tk.log.init(MODELS_DIR / 'train.log')
         _run(X_train, y_train, X_val, y_val)
@@ -21,10 +18,13 @@ def _main():
 
 def _run(X_train, y_train, X_val, y_val):
     import keras
-    logger = tk.log.get(__name__)
     builder = tk.dl.networks.Builder()
 
-    x = inputs = keras.layers.Input(shape=(101, 101, 2))
+    inputs = [
+        keras.layers.Input(shape=(101, 101, 1)),
+        keras.layers.Input(shape=(1,)),
+    ]
+    x = inputs[0]
     down_list = []
     for stage, filters in enumerate([64, 128, 256, 512, 512]):
         if stage == 0:
@@ -33,14 +33,18 @@ def _run(X_train, y_train, X_val, y_val):
             if builder.shape(x)[-2] % 2 != 0:
                 x = tk.dl.layers.pad2d()(padding=((0, 1), (0, 1)), mode='reflect')(x)
             x = builder.conv2d(filters, strides=2, use_act=False)(x)
-        for _ in range(3):
+        for _ in range(4):
             x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.bn_act()(x)
         down_list.append(x)
 
     x = keras.layers.GlobalAveragePooling2D()(x)
+    x = builder.dense(32)(x)
+    x = builder.bn(center=False, scale=False)(x)
+    x = keras.layers.concatenate([x, inputs[1]])
+    x = builder.dense(32)(x)
+    x = builder.act()(x)
     gate = builder.dense(1, activation='sigmoid')(x)
-    x = builder.dense(32, activation='elu')(x)
 
     # stage 0: 101
     # stage 1: 51
@@ -51,10 +55,11 @@ def _run(X_train, y_train, X_val, y_val):
         filters = builder.shape(d)[-1]
         if stage == 4:
             x = keras.layers.Reshape((1, 1, -1))(x)
+            x = builder.conv2dtr(32, 7)(x)
         else:
-            x = builder.conv2dtr(filters // 4, 2, strides=2, use_act=False)(x)
-        if stage in (0, 1, 3):
-            x = keras.layers.Cropping2D(((0, 1), (0, 1)))(x)
+            x = builder.conv2dtr(filters // 4, 2, strides=2)(x)
+            if stage in (0, 1, 3):
+                x = keras.layers.Cropping2D(((0, 1), (0, 1)))(x)
         x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
         x = keras.layers.add([x, d])
@@ -67,13 +72,16 @@ def _run(X_train, y_train, X_val, y_val):
     x = keras.layers.multiply([x, gate])
     network = keras.models.Model(inputs, x)
 
-    gen = tk.image.ImageDataGenerator()
-    gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True))
-    gen.add(tk.image.RandomRotate90(probability=0.5, with_output=True))
-    gen.add(tk.image.GaussianNoise(probability=0.125, scale=5 / 128))
+    gen = tk.image.generator.Generator(multiple_input=True)
+    gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
+    gen.add(tk.image.RandomPadding(probability=1, with_output=True), input_index=0)
+    gen.add(tk.image.RandomRotate(probability=0.25, with_output=True), input_index=0)
+    gen.add(tk.image.RandomCrop(probability=1, with_output=True), input_index=0)
+    gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True), input_index=0)
+    gen.add(tk.image.RandomErasing(probability=0.5), input_index=0)
 
     model = tk.dl.models.Model(network, gen, batch_size=32)
-    model.compile(sgd_lr=0.5 / 256, loss='binary_crossentropy', metrics=[tk.dl.metrics.mean_iou])
+    model.compile(sgd_lr=0.5 / 256, loss='binary_crossentropy', metrics=['acc'])
     model.summary()
     model.plot(MODELS_DIR / 'model.svg')
 
@@ -88,18 +96,7 @@ def _run(X_train, y_train, X_val, y_val):
     if tk.dl.hvd.is_master():
         # 検証
         pred_val = model.predict(X_val)
-        tk.ml.print_classification_metrics(np.ravel(y_val), np.ravel(pred_val))
-
-        # 閾値の最適化
-        threshold_list = np.linspace(0.25, 0.75, 20)
-        score_list = []
-        for th in tk.tqdm(threshold_list):
-            score = data.compute_iou_metric(np.int32(y_val > 0.5), np.int32(pred_val > th))
-            logger.info(f'threshold={th:.3f}: score={score:.3f}')
-            score_list.append(score)
-        best_index = np.argmax(score_list)
-        logger.info(f'max score: {score_list[best_index]:.3f}')
-        logger.info(f'threshold: {threshold_list[best_index]:.3f}')
+        evaluation.log_evaluation(y_val, pred_val)
 
 
 if __name__ == '__main__':
