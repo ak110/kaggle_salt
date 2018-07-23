@@ -18,7 +18,10 @@ def _main():
 
 def _run(X_val, y_val):
     network = tk.dl.models.load_model(MODELS_DIR / 'model.h5', compile=False)
-    gen = tk.image.ImageDataGenerator()
+
+    gen = tk.image.generator.Generator(multiple_input=True)
+    gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
+
     model = tk.dl.models.Model(network, gen, batch_size=32)
 
     pred_val = model.predict(X_val)

@@ -20,8 +20,12 @@ def _main():
 
 def _run(X, test_prefixes):
     network = tk.dl.models.load_model(MODELS_DIR / 'model.h5', compile=False)
-    gen = tk.image.ImageDataGenerator()
+
+    gen = tk.image.generator.Generator(multiple_input=True)
+    gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
+
     model = tk.dl.models.Model(network, gen, batch_size=32)
+
     pred = model.predict(X, verbose=1)
 
     data.save_submission(MODELS_DIR / 'submission.csv', pred, test_prefixes, THRESHOLD)
