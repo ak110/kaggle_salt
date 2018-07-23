@@ -39,9 +39,7 @@ def load_test_data():
     X = np.expand_dims(X, axis=3)
 
     d = _load_depths(prefixes)
-
-    X = np.concatenate([X, d], axis=-1)
-    return X, prefixes
+    return [X, d], prefixes
 
 
 def _load_depths(prefixes):
