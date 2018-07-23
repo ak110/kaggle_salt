@@ -18,7 +18,7 @@ def _main():
 
 
 def _run(X, test_prefixes):
-    network = tk.dl.models.load_model(MODELS_DIR / 'model.h5', compile=False)
+    network = tk.dl.models.load_model(MODELS_DIR / 'model_1/model.fold0.h5', compile=False)  # TODO:
 
     gen = tk.image.generator.Generator(multiple_input=True)
     gen.add(tk.image.LoadImage(grayscale=True), input_index=0)

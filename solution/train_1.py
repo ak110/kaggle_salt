@@ -19,7 +19,7 @@ def _main():
     parser.add_argument('--epochs', default=300, type=int)
     args = parser.parse_args()
     with tk.dl.session(use_horovod=True):
-        tk.log.init(MODELS_DIR / 'train.fold{args.cv_index}.log')
+        tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
         _run(args)
 
 
@@ -98,13 +98,13 @@ def _run(args):
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
         epochs=args.epochs,
-        tsv_log_path=MODELS_DIR / 'history.fold{args.cv_index}.tsv',
+        tsv_log_path=MODELS_DIR / f'history.fold{args.cv_index}.tsv',
         cosine_annealing=True, mixup=True)
-    model.save(MODELS_DIR / 'model.fold{args.cv_index}.h5')
+    model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5')
 
     if tk.dl.hvd.is_master():
         pred_val = model.predict(X_val)
-        joblib.dump(pred_val, MODELS_DIR / 'pred-val.fold{args.cv_index}.h5')
+        joblib.dump(pred_val, MODELS_DIR / f'pred-val.fold{args.cv_index}.h5')
         evaluation.log_evaluation(y_val, pred_val)
 
 
