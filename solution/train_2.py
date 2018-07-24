@@ -8,8 +8,8 @@ import data
 import evaluation
 import pytoolkit as tk
 
-MODELS_DIR = pathlib.Path('models/model_1')
-SPLIT_SEED = 123
+MODELS_DIR = pathlib.Path('models/model_2')
+SPLIT_SEED = 234
 CV_COUNT = 5
 
 
@@ -18,7 +18,7 @@ def _main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
     parser.add_argument('--batch-size', default=32, type=int)
-    parser.add_argument('--epochs', default=300, type=int)
+    parser.add_argument('--epochs', default=200, type=int)
     args = parser.parse_args()
     with tk.dl.session(use_horovod=True):
         tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
@@ -48,16 +48,14 @@ def _run(args):
     d = keras.layers.Reshape((101, 101, 1))(d)
     x = keras.layers.concatenate([x, d])
     down_list = []
-    for stage, (filters, blocks) in enumerate(zip([64, 128, 256, 512, 512], [2, 3, 4, 4, 2])):
+    for stage, filters in enumerate([64, 128, 256, 512, 512]):
         if stage == 0:
-            x = builder.conv2d(filters, strides=1, use_act=False)(x)
+            x = builder.conv2d(filters, strides=1)(x)
         else:
-            if builder.shape(x)[-2] % 2 != 0:
-                x = tk.dl.layers.pad2d()(padding=((0, 1), (0, 1)), mode='reflect')(x)
-            x = builder.conv2d(filters, strides=2, use_act=False)(x)
-        for _ in range(blocks):
-            x = builder.res_block(filters, dropout=0.25)(x)
-        x = builder.bn_act()(x)
+            x = keras.layers.MaxPooling2D(padding='same')(x)
+        x = builder.conv2d(filters)(x)
+        x = builder.conv2d(filters)(x)
+        x = builder.conv2d(filters)(x)
         down_list.append(x)
 
     x = keras.layers.GlobalAveragePooling2D()(x)
