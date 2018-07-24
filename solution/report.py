@@ -25,7 +25,7 @@ MODELS = {
 def _main():
     tk.better_exceptions()
     parser = argparse.ArgumentParser()
-    parser.add_argument('models', default=['all'], choices=('all',) + tuple(list(MODELS.keys())), nargs='+')
+    parser.add_argument('models', default='all', choices=('all',) + tuple(list(MODELS.keys())), nargs='*')
     args = parser.parse_args()
     tk.log.init(None)
     model_names = MODELS.keys() if args.models == ['all'] else args.models
@@ -38,13 +38,13 @@ def _report(args, model_name):
     logger.info(f'{"=" * 32} {model_name} {"=" * 32}')
 
     X, _, y = data.load_train_data()
+    y = data.load_mask(y)
 
-    pred = np.empty(y.shape)
+    pred = np.empty(y.shape, dtype=np.float32)
     for cv_index in range(MODELS[model_name]['cv_count']):
-        _, vi = tk.ml.cv_indices(X, y, cv_count=MODELS[model_name]['cv_count'], cv_index=cv_index, split_seed=MODELS[model_name]['split_seed'])
+        _, vi = tk.ml.cv_indices(X, y, cv_count=MODELS[model_name]['cv_count'], cv_index=cv_index, split_seed=MODELS[model_name]['split_seed'], stratify=False)
         pred[vi] = joblib.load(MODELS_DIR / model_name / f'pred-val.fold{cv_index}.h5')
 
-    y = data.load_mask(y)
     evaluation.log_evaluation(y, pred)
 
 
