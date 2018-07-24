@@ -75,7 +75,7 @@ def _run(args):
     for stage, d in list(enumerate(down_list))[::-1]:
         filters = builder.shape(d)[-1]
         if stage == 4:
-            x = builder.conv2dtr(32, 7)(x)
+            x = builder.conv2dtr(32, 7, strides=7)(x)
         else:
             x = builder.conv2dtr(filters // 4, 2, strides=2)(x)
             if stage in (0, 1, 3):
