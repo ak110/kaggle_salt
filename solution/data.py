@@ -10,49 +10,42 @@ TRAIN_IMAGE_DIR = pathlib.Path('../input/train/images')
 TRAIN_IMAGE_DIR = pathlib.Path('../input/train/images')
 TRAIN_MASK_DIR = pathlib.Path('../input/train/masks')
 TEST_IMAGE_DIR = pathlib.Path('../input/test/images')
+TRAIN_PATH = pathlib.Path('../input/train.csv')
+TEST_PATH = pathlib.Path('../input/sample_submission.csv')
 DEPTHS_PATH = pathlib.Path('../input/depths.csv')
 
 
-def load_train_data(cv_count=5, cv_index=0):
-    names = [p.name for p in TRAIN_IMAGE_DIR.iterdir()]
-    prefixes = [p.stem for p in TRAIN_IMAGE_DIR.iterdir()]
-
-    X = [cv2.imread(str(TRAIN_IMAGE_DIR / p), cv2.IMREAD_GRAYSCALE) for p in tk.tqdm(names)]
-    X = np.expand_dims(X, axis=3)
-
-    d = _load_depths(prefixes)
-
-    y = [cv2.imread(str(TRAIN_MASK_DIR / p), cv2.IMREAD_GRAYSCALE) for p in tk.tqdm(names)]
-    y = np.array(y, dtype=np.float32) / 255  # 0-1
-    y = np.expand_dims(y, axis=3)
-
-    ti, vi = tk.ml.cv_indices(X, y, cv_count=cv_count, cv_index=cv_index, split_seed=123)
-    tk.log.get(__name__).info(f'cv_index={cv_index}: train={len(ti)} val={len(vi)}')
-    return ([X[ti], d[ti]], y[ti]), ([X[vi], d[vi]], y[vi])
+def load_train_data():
+    id_list = pd.read_csv(TRAIN_PATH)['id'].values
+    X = [TRAIN_IMAGE_DIR / (id_ + '.png') for id_ in id_list]
+    d = _load_depths(id_list)
+    y = [TRAIN_MASK_DIR / (id_ + '.png') for id_ in id_list]
+    return X, d, y
 
 
 def load_test_data():
-    names = [p.name for p in TEST_IMAGE_DIR.iterdir()]
-    prefixes = [p.stem for p in TEST_IMAGE_DIR.iterdir()]
-
-    X = [cv2.imread(str(TEST_IMAGE_DIR / p), cv2.IMREAD_GRAYSCALE) for p in tk.tqdm(names)]
-    X = np.expand_dims(X, axis=3)
-
-    d = _load_depths(prefixes)
-    return [X, d], prefixes
+    id_list = pd.read_csv(TEST_PATH)['id'].values
+    X = [TEST_IMAGE_DIR / (id_ + '.png') for id_ in id_list]
+    d = _load_depths(id_list)
+    return [X, d]
 
 
-def _load_depths(prefixes):
-    df_depths = pd.read_csv(DEPTHS_PATH)
-    depths = {row['id']: row['z'] for _, row in df_depths.iterrows()}
-    d = np.array([depths[p] for p in prefixes], dtype=np.float32)
+def _load_depths(id_list):
+    df_depths = pd.read_csv(DEPTHS_PATH, index_col='id')
+    depths = df_depths['z'].to_dict()
+    d = np.array([depths[id_] for id_ in id_list], dtype=np.float32)
     d -= df_depths['z'].mean()
     d /= df_depths['z'].std()
     return d
 
 
-def save_submission(save_path, pred, prefixes, threshold):
-    pred_dict = {prefix: _encode_rl(pred[i, :, :, 0] >= threshold) for i, prefix in enumerate(tk.tqdm(prefixes))}
+def load_mask(y):
+    return np.array([cv2.imread(str(p)).astype(np.float32) / 255 for p in y])
+
+
+def save_submission(save_path, pred_test, threshold):
+    id_list = pd.read_csv(TEST_PATH)['id'].values
+    pred_dict = {id_: _encode_rl(pred_test[i, :, :, 0] >= threshold) for i, id_ in enumerate(tk.tqdm(id_list))}
     df = pd.DataFrame.from_dict(pred_dict, orient='index')
     df.index.names = ['id']
     df.columns = ['rle_mask']

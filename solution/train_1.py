@@ -9,12 +9,14 @@ import evaluation
 import pytoolkit as tk
 
 MODELS_DIR = pathlib.Path('models/model_1')
+SPLIT_SEED = 123
+CV_COUNT = 5
 
 
 def _main():
     tk.better_exceptions()
     parser = argparse.ArgumentParser()
-    parser.add_argument('--cv-index', default=0, choices=range(5), type=int)
+    parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
     parser.add_argument('--batch-size', default=32, type=int)
     parser.add_argument('--epochs', default=300, type=int)
     args = parser.parse_args()
@@ -24,7 +26,13 @@ def _main():
 
 
 def _run(args):
-    (X_train, y_train), (X_val, y_val) = data.load_train_data(cv_index=args.cv_index)
+    logger = tk.log.get(__name__)
+    X, d, y = data.load_train_data()
+    ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=SPLIT_SEED)
+    (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti]], y[ti]), ([X[vi], d[vi]], y[vi])
+    y_train = data.load_mask(y_train)
+    y_val = data.load_mask(y_val)
+    logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
 
     import keras
     builder = tk.dl.networks.Builder()
