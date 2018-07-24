@@ -27,6 +27,7 @@ def _main():
 
 def _run(args):
     logger = tk.log.get(__name__)
+    logger.info(f'args: {args}')
     X, d, y = data.load_train_data()
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=SPLIT_SEED, stratify=False)
     (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti]], y[ti]), ([X[vi], d[vi]], y[vi])

@@ -27,6 +27,7 @@ def _main():
 
 def _run(args):
     logger = tk.log.get(__name__)
+    logger.info(f'args: {args}')
     X, d, y = data.load_train_data()
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=SPLIT_SEED, stratify=False)
     (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti]], y[ti]), ([X[vi], d[vi]], y[vi])
@@ -50,7 +51,7 @@ def _run(args):
     down_list = []
     for stage, filters in enumerate([64, 128, 256, 512, 512]):
         if stage == 0:
-            x = builder.conv2d(filters, strides=1)(x)
+            x = builder.conv2d(filters)(x)
         else:
             x = keras.layers.MaxPooling2D(padding='same')(x)
         x = builder.conv2d(filters)(x)
