@@ -3,6 +3,7 @@
 import argparse
 import pathlib
 
+import numpy as np
 import sklearn.externals.joblib as joblib
 
 import data
