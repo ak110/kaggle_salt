@@ -7,4 +7,4 @@ mpirun -np $GPUS python3 model_4.py --cv-index=1 $*
 mpirun -np $GPUS python3 model_4.py --cv-index=2 $*
 mpirun -np $GPUS python3 model_4.py --cv-index=3 $*
 mpirun -np $GPUS python3 model_4.py --cv-index=4 $*
-python3 predict.py model_4
+python3 report.py model_4

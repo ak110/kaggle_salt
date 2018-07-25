@@ -37,7 +37,8 @@ def _report(model_name):
 
     m = MODELS[model_name]
     if m.OUTPUT_TYPE == 'bin':
-        y = np.max(data.load_mask(y) > 0.5, axis=(1, 2, 3)).astype(np.uint8)  # 0 or 1
+        y = np.max(y > 0.5, axis=(1, 2, 3)).astype(np.uint8)  # 0 or 1
+        y = np.expand_dims(y, axis=-1)
 
     pred = np.empty(y.shape, dtype=np.float32)
     for cv_index in range(m.CV_COUNT):
