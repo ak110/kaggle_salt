@@ -18,7 +18,7 @@ def _main():
     tk.better_exceptions()
     parser = argparse.ArgumentParser()
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
-    parser.add_argument('--batch-size', default=32, type=int)
+    parser.add_argument('--batch-size', default=16, type=int)
     parser.add_argument('--epochs', default=300, type=int)
     args = parser.parse_args()
     with tk.dl.session(use_horovod=True):
@@ -73,7 +73,7 @@ def _run(args):
     # stage 5: 8
     for stage, d in list(enumerate(down_list))[::-1]:
         filters = builder.shape(d)[-1]
-        if stage == 4:
+        if stage == 5:
             x = builder.conv2dtr(32, 8, strides=8)(x)
         else:
             x = builder.conv2dtr(filters // 4, 2, strides=2)(x)

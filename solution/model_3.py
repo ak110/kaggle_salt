@@ -30,14 +30,22 @@ def _run(args):
     logger = tk.log.get(__name__)
     logger.info(f'args: {args}')
     X, d, y = data.load_train_data()
-    y = np.max(data.load_mask(y) > 0.5, axis=(1, 2, 3)).astype(np.uint8)
+    y = np.max(data.load_mask(y) > 0.5, axis=(1, 2, 3)).astype(np.uint8)  # 0 or 1
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=SPLIT_SEED, stratify=False)
     (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti]], y[ti]), ([X[vi], d[vi]], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
 
     import keras
-    x = inputs = keras.layers.Input((256, 256, 3))
+    inputs = [
+        keras.layers.Input((256, 256, 1)),
+        keras.layers.Input((1,)),
+    ]
+    x = inputs[0]
     x = tk.dl.layers.preprocess()(mode='tf')(x)
+    d = inputs[1]
+    d = keras.layers.RepeatVector(256 * 256)(d)
+    d = keras.layers.Reshape((256, 256, 1))(d)
+    x = keras.layers.concatenate([x, x, d])
     base_model = keras.applications.NASNetLarge(include_top=False, input_tensor=x)
     x = base_model.outputs[0]
     x = keras.layers.GlobalAveragePooling2D()(x)
@@ -48,9 +56,9 @@ def _run(args):
 
     gen = tk.image.generator.Generator(multiple_input=True)
     gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
-    gen.add(tk.image.RandomRotate(probability=0.25, with_output=True), input_index=0)
-    gen.add(tk.image.Resize((256, 256), with_output=True), input_index=0)
-    gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True), input_index=0)
+    gen.add(tk.image.RandomRotate(probability=0.25), input_index=0)
+    gen.add(tk.image.Resize((256, 256)), input_index=0)
+    gen.add(tk.image.RandomFlipLR(probability=0.5), input_index=0)
 
     model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
     model.compile(sgd_lr=0.1 / 128, loss='binary_crossentropy', metrics=['acc'])
