@@ -50,7 +50,7 @@ def _run(args):
     x = keras.layers.concatenate([x, d])
     for stage, filters in enumerate([32, 64, 128, 256, 512]):
         x = builder.conv2d(filters, strides=1 if stage == 0 else 2, use_act=False)(x)
-        for _ in range(3):
+        for _ in range(4):
             x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.bn_act()(x)
     x = keras.layers.GlobalAveragePooling2D()(x)
