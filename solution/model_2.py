@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""101x101で素直にやってみるやつ。"""
 import argparse
 import pathlib
 

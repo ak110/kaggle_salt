@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""有無のみを2クラス分類するやつ。"""
 import argparse
 import pathlib
 
@@ -6,7 +7,6 @@ import numpy as np
 import sklearn.externals.joblib as joblib
 
 import data
-import evaluation
 import pytoolkit as tk
 
 MODELS_DIR = pathlib.Path('models/model_3')
