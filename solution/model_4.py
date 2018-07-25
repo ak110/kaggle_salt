@@ -12,6 +12,7 @@ import pytoolkit as tk
 MODELS_DIR = pathlib.Path('models/model_4')
 SPLIT_SEED = 456
 CV_COUNT = 5
+OUTPUT_TYPE = 'bin'
 
 
 def _main():

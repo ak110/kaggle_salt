@@ -12,6 +12,7 @@ import pytoolkit as tk
 MODELS_DIR = pathlib.Path('models/model_2')
 SPLIT_SEED = 234
 CV_COUNT = 5
+OUTPUT_TYPE = 'mask'
 
 
 def _main():
