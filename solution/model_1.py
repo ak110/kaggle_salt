@@ -33,8 +33,12 @@ def _train_impl(args):
     logger.info(f'args: {args}')
     X, d, y = data.load_train_data()
     y = data.load_mask(y)
+
+    import model_3
+    mf = model_3.load_oofp(X, y)
+
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=SPLIT_SEED, stratify=False)
-    (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti]], y[ti]), ([X[vi], d[vi]], y[vi])
+    (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti], mf[ti]], y[ti]), ([X[vi], d[vi], mf[vi]], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
 
     import keras
@@ -42,19 +46,21 @@ def _train_impl(args):
 
     inputs = [
         builder.input_tensor((256, 256, 1)),
-        builder.input_tensor((1,)),
+        builder.input_tensor((1,)),  # depths
+        builder.input_tensor((1,)),  # model_3
     ]
     x = inputs[0]
     x = builder.preprocess()(x)
     d = inputs[1]
     d = keras.layers.RepeatVector(256 * 256)(d)
     d = keras.layers.Reshape((256, 256, 1))(d)
-    x = keras.layers.concatenate([x, d])
+    mf = inputs[2]
+    mf = keras.layers.RepeatVector(256 * 256)(mf)
+    mf = keras.layers.Reshape((256, 256, 1))(mf)
+    x = keras.layers.concatenate([x, d, mf])
     down_list = []
     for stage, filters in enumerate([32, 64, 128, 256, 512, 512]):
-        if stage == 0:
-            x = builder.conv2d(filters)(x)
-        else:
+        if stage != 0:
             x = keras.layers.MaxPooling2D(padding='same')(x)
         x = builder.conv2d(filters)(x)
         x = builder.conv2d(filters)(x)

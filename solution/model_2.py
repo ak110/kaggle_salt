@@ -52,9 +52,7 @@ def _train_impl(args):
     x = keras.layers.concatenate([x, d])
     down_list = []
     for stage, filters in enumerate([64, 128, 256, 512, 512]):
-        if stage == 0:
-            x = builder.conv2d(filters)(x)
-        else:
+        if stage != 0:
             x = keras.layers.MaxPooling2D(padding='same')(x)
         x = builder.conv2d(filters)(x)
         x = builder.conv2d(filters)(x)
