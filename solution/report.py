@@ -3,6 +3,7 @@ import argparse
 import pathlib
 
 import numpy as np
+import sklearn.metrics
 import sklearn.externals.joblib as joblib
 
 import data
@@ -50,6 +51,9 @@ def _report(model_name, X, y):
 
     if m.OUTPUT_TYPE == 'bin':
         tk.ml.print_classification_metrics(y, pred, print_fn=logger.info)
+        logger.info('roc curve:')
+        for fpr, tpr, th in zip(*sklearn.metrics.roc_curve(y, pred)):
+            logger.info(f'  threshold={th:.3f}: fpr={fpr:.3f} tpr={tpr:.3f}')
     else:
         evaluation.log_evaluation(y, pred, print_fn=logger.info)
 
