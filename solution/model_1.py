@@ -16,7 +16,7 @@ CV_COUNT = 5
 OUTPUT_TYPE = 'mask'
 
 
-def _main():
+def _train():
     tk.better_exceptions()
     parser = argparse.ArgumentParser()
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
@@ -25,10 +25,10 @@ def _main():
     args = parser.parse_args()
     with tk.dl.session(use_horovod=True):
         tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
-        _run(args)
+        _train_impl(args)
 
 
-def _run(args):
+def _train_impl(args):
     logger = tk.log.get(__name__)
     logger.info(f'args: {args}')
     X, d, y = data.load_train_data()
@@ -117,5 +117,14 @@ def _run(args):
         evaluation.log_evaluation(y_val, pred_val)
 
 
+def load_oofp(X, y):
+    """out-of-fold predictionを読み込んで返す。"""
+    pred = np.empty((len(y), 101, 101, 1), dtype=np.float32)
+    for cv_index in range(CV_COUNT):
+        _, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=cv_index, split_seed=SPLIT_SEED, stratify=False)
+        pred[vi] = joblib.load(MODELS_DIR / f'pred-val.fold{cv_index}.h5')
+    return pred
+
+
 if __name__ == '__main__':
-    _main()
+    _train()

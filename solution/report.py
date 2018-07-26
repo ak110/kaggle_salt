@@ -4,7 +4,6 @@ import pathlib
 
 import numpy as np
 import sklearn.metrics
-import sklearn.externals.joblib as joblib
 
 import data
 import evaluation
@@ -44,10 +43,7 @@ def _report(model_name, X, y):
         y = np.max(y > 0.5, axis=(1, 2, 3)).astype(np.uint8)  # 0 or 1
         y = np.expand_dims(y, axis=-1)
 
-    pred = np.empty(y.shape, dtype=np.float32)
-    for cv_index in range(m.CV_COUNT):
-        _, vi = tk.ml.cv_indices(X, y, cv_count=m.CV_COUNT, cv_index=cv_index, split_seed=m.SPLIT_SEED, stratify=False)
-        pred[vi] = joblib.load(m.MODELS_DIR / f'pred-val.fold{cv_index}.h5')
+    pred = m.load_oofp(X, y)
 
     if m.OUTPUT_TYPE == 'bin':
         tk.ml.print_classification_metrics(y, pred, print_fn=logger.info)
