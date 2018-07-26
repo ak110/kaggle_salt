@@ -39,18 +39,19 @@ def _train_impl(args):
     import keras
     builder = tk.dl.networks.Builder()
     inputs = [
-        builder.input_tensor((128, 128, 1)),
+        builder.input_tensor((256, 256, 1)),
         builder.input_tensor((1,)),
     ]
     x = inputs[0]
     x = tk.dl.layers.preprocess()(mode='tf')(x)
     d = inputs[1]
-    d = keras.layers.RepeatVector(128 * 128)(d)
-    d = keras.layers.Reshape((128, 128, 1))(d)
+    d = keras.layers.RepeatVector(256 * 256)(d)
+    d = keras.layers.Reshape((256, 256, 1))(d)
     x = keras.layers.concatenate([x, d])
-    for stage, filters in enumerate([32, 64, 128, 256, 512]):
-        x = builder.conv2d(filters, strides=1 if stage == 0 else 2, use_act=False)(x)
-        for _ in range(4):
+    x = builder.conv2d(32, 7, strides=2)(x)
+    for filters in [64, 128, 256, 512]:
+        x = builder.conv2d(filters, strides=2, use_act=False)(x)
+        for _ in range(6):
             x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.bn_act()(x)
     x = keras.layers.GlobalAveragePooling2D()(x)
@@ -60,7 +61,7 @@ def _train_impl(args):
     gen = tk.image.generator.Generator(multiple_input=True)
     gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
     gen.add(tk.image.RandomRotate(probability=0.25), input_index=0)
-    gen.add(tk.image.Resize((128, 128)), input_index=0)
+    gen.add(tk.image.Resize((256, 256)), input_index=0)
     gen.add(tk.image.RandomFlipLR(probability=0.5), input_index=0)
 
     model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
