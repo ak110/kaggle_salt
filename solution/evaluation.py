@@ -4,23 +4,24 @@ import numpy as np
 import pytoolkit as tk
 
 
-def log_evaluation(y_val, pred_val):
+def log_evaluation(y_val, pred_val, print_fn=None):
     """検証結果をログる。"""
+    print_fn = print_fn or tk.log.get(__name__).info
+
     # 正解率とか
-    tk.ml.print_classification_metrics(np.ravel(y_val), np.ravel(pred_val))
+    tk.ml.print_classification_metrics(np.ravel(y_val), np.ravel(pred_val), print_fn=print_fn)
 
     # 閾値の最適化
-    logger = tk.log.get(__name__)
     threshold_list = np.linspace(0.25, 0.75, 20)
     score_list = []
     for th in threshold_list:
         score = compute_iou_metric(np.int32(y_val > 0.5), np.int32(pred_val > th))
         score_list.append(score)
     best_index = np.argmax(score_list)
-    logger.info(f'max score: {score_list[best_index]:.3f} (threshold: {threshold_list[best_index]:.3f})')
-    logger.info('scores:')
+    print_fn(f'max score: {score_list[best_index]:.3f} (threshold: {threshold_list[best_index]:.3f})')
+    print_fn('scores:')
     for th, score in zip(threshold_list, score_list):
-        logger.info(f'  threshold={th:.3f}: score={score:.3f}')
+        print_fn(f'  threshold={th:.3f}: score={score:.3f}')
 
 
 def compute_iou_metric(y_true, y_pred):

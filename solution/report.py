@@ -14,6 +14,7 @@ import model_4
 import pytoolkit as tk
 
 MODELS_DIR = pathlib.Path('models')
+REPORTS_DIR = pathlib.Path('reports')
 MODELS = {m.__name__: m for m in [model_1, model_2, model_3, model_4]}
 
 
@@ -32,8 +33,9 @@ def _report(model_name):
     X, _, y = data.load_train_data()
     y = data.load_mask(y)
 
-    logger = tk.log.get(__name__)
-    logger.info(f'{"=" * 32} {model_name} {"=" * 32}')
+    print(f'{"=" * 32} {model_name} {"=" * 32}')
+    logger = tk.log.get(f'report_{model_name}')
+    logger.addHandler(tk.log.file_handler(REPORTS_DIR / f'{model_name}.txt'))
 
     m = MODELS[model_name]
     if m.OUTPUT_TYPE == 'bin':
@@ -46,9 +48,9 @@ def _report(model_name):
         pred[vi] = joblib.load(m.MODELS_DIR / f'pred-val.fold{cv_index}.h5')
 
     if m.OUTPUT_TYPE == 'bin':
-        tk.ml.print_classification_metrics(y, pred)
+        tk.ml.print_classification_metrics(y, pred, print_fn=logger.info)
     else:
-        evaluation.log_evaluation(y, pred)
+        evaluation.log_evaluation(y, pred, print_fn=logger.info)
 
 
 if __name__ == '__main__':
