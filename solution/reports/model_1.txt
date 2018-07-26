@@ -1,0 +1,26 @@
+[INFO ] Accuracy: 0.957 <report_model_1:ml.py:532>
+[INFO ] F1-score: 0.911 <report_model_1:ml.py:533>
+[INFO ] AUC:      0.985 <report_model_1:ml.py:534>
+[INFO ] Logloss:  0.123 <report_model_1:ml.py:535>
+[INFO ] max score: 0.810 (threshold: 0.461) <report_model_1:evaluation.py:21>
+[INFO ] scores: <report_model_1:evaluation.py:22>
+[INFO ]   threshold=0.250: score=0.791 <report_model_1:evaluation.py:24>
+[INFO ]   threshold=0.276: score=0.797 <report_model_1:evaluation.py:24>
+[INFO ]   threshold=0.303: score=0.799 <report_model_1:evaluation.py:24>
+[INFO ]   threshold=0.329: score=0.802 <report_model_1:evaluation.py:24>
+[INFO ]   threshold=0.355: score=0.806 <report_model_1:evaluation.py:24>
+[INFO ]   threshold=0.382: score=0.807 <report_model_1:evaluation.py:24>
+[INFO ]   threshold=0.408: score=0.807 <report_model_1:evaluation.py:24>
+[INFO ]   threshold=0.434: score=0.808 <report_model_1:evaluation.py:24>
+[INFO ]   threshold=0.461: score=0.810 <report_model_1:evaluation.py:24>
+[INFO ]   threshold=0.487: score=0.809 <report_model_1:evaluation.py:24>
+[INFO ]   threshold=0.513: score=0.809 <report_model_1:evaluation.py:24>
+[INFO ]   threshold=0.539: score=0.810 <report_model_1:evaluation.py:24>
+[INFO ]   threshold=0.566: score=0.809 <report_model_1:evaluation.py:24>
+[INFO ]   threshold=0.592: score=0.809 <report_model_1:evaluation.py:24>
+[INFO ]   threshold=0.618: score=0.807 <report_model_1:evaluation.py:24>
+[INFO ]   threshold=0.645: score=0.805 <report_model_1:evaluation.py:24>
+[INFO ]   threshold=0.671: score=0.803 <report_model_1:evaluation.py:24>
+[INFO ]   threshold=0.697: score=0.800 <report_model_1:evaluation.py:24>
+[INFO ]   threshold=0.724: score=0.797 <report_model_1:evaluation.py:24>
+[INFO ]   threshold=0.750: score=0.793 <report_model_1:evaluation.py:24>

@@ -25,14 +25,15 @@ def _main():
     args = parser.parse_args()
     tk.log.init(None)
     model_names = MODELS.keys() if args.models == ['all'] else args.models
-    for model_name in model_names:
-        _report(model_name)
 
-
-def _report(model_name):
     X, _, y = data.load_train_data()
     y = data.load_mask(y)
 
+    for model_name in model_names:
+        _report(model_name, X, y)
+
+
+def _report(model_name, X, y):
     print(f'{"=" * 32} {model_name} {"=" * 32}')
     logger = tk.log.get(f'report_{model_name}')
     logger.addHandler(tk.log.file_handler(REPORTS_DIR / f'{model_name}.txt'))
