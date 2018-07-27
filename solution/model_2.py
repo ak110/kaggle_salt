@@ -78,8 +78,8 @@ def _train_impl(args):
             x = builder.conv2dtr(filters // 4, 2, strides=2)(x)
             if stage in (0, 1, 3):
                 x = keras.layers.Cropping2D(((0, 1), (0, 1)))(x)
-        x = builder.conv2d(filters, 1, use_act=False)(x)
-        d = builder.conv2d(filters, 1, use_act=False)(d)
+        x = builder.conv2d(filters, 1, use_bn=False, use_act=False)(x)
+        d = builder.conv2d(filters, 1, use_bn=False, use_act=False)(d)
         x = keras.layers.add([x, d])
         x = builder.bn_act()(x)
         x = keras.layers.Dropout(0.25)(x)
