@@ -13,15 +13,20 @@ def log_evaluation(y_val, pred_val, print_fn=None):
 
     # 閾値の最適化
     threshold_list = np.linspace(0.25, 0.75, 20)
-    score_list = []
+    score1_list = []
+    score2_list = []
     for th in tk.tqdm(threshold_list):
-        score = compute_iou_metric(np.int32(y_val > 0.5), np.int32(pred_val > th))
-        score_list.append(score)
-    best_index = np.argmax(score_list)
-    print_fn(f'max score: {score_list[best_index]:.3f} (threshold: {threshold_list[best_index]:.3f})')
+        score1 = compute_iou_metric(np.int32(y_val > 0.5), np.int32(pred_val > th))
+        score2 = compute_score(np.int32(y_val > 0.5), np.int32(pred_val > th))
+        score1_list.append(score1)
+        score2_list.append(score2)
+    best_index1 = np.argmax(score1_list)
+    best_index2 = np.argmax(score2_list)
+    print_fn(f'max score1: {score1_list[best_index1]:.3f} (threshold: {threshold_list[best_index1]:.3f})')
+    print_fn(f'max score2: {score2_list[best_index2]:.3f} (threshold: {threshold_list[best_index2]:.3f})')
     print_fn('scores:')
-    for th, score in zip(threshold_list, score_list):
-        print_fn(f'  threshold={th:.3f}: score={score:.3f}')
+    for th, score1, score2 in zip(threshold_list, score1_list, score2_list):
+        print_fn(f'  threshold={th:.3f}: score1={score1:.3f} score2={score2:.3f}')
 
 
 def compute_iou_metric(y_true, y_pred):
@@ -78,3 +83,19 @@ def _iou_metric_single(y_true, y_pred, print_table=False):
     if print_table:
         print("AP\t-\t-\t-\t{:1.3f}".format(np.mean(prec)))
     return np.mean(prec)
+
+
+def compute_score(y_true, y_pred):
+    """適当スコア算出。"""
+    obj = np.sum(y_true, axis=(1, 2, 3)) > 0
+    bg = np.logical_not(obj)
+    empty = np.sum(y_pred, axis=(1, 2, 3)) == 0
+    prec_list = []
+    for threshold in np.arange(0.5, 1.0, 0.05):
+        inter = np.sum(np.logical_and(y_true, y_pred), axis=(1, 2, 3))
+        union = np.sum(np.logical_or(y_true, y_pred), axis=(1, 2, 3))
+        iou = inter / np.maximum(union, 1)
+        detected = iou > threshold
+        match = np.logical_and(obj, detected) + np.logical_and(bg, empty)
+        prec_list.append(np.sum(match) / len(y_true))
+    return np.mean(prec_list)
