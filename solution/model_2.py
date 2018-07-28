@@ -48,10 +48,6 @@ def _train_impl(args):
     ]
     x = inputs[0]
     x = builder.preprocess()(x)
-    d = inputs[1]
-    d = keras.layers.RepeatVector(101 * 101)(d)
-    d = keras.layers.Reshape((101, 101, 1))(d)
-    x = keras.layers.concatenate([x, d])
     down_list = []
     for stage, filters in enumerate([64, 128, 256, 512, 512]):
         if stage != 0:
