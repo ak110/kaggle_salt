@@ -51,13 +51,6 @@ def _train_impl(args):
     ]
     x = inputs[0]
     x = builder.preprocess()(x)
-    d = inputs[1]
-    d = keras.layers.RepeatVector(256 * 256)(d)
-    d = keras.layers.Reshape((256, 256, 1))(d)
-    mf = inputs[2]
-    mf = keras.layers.RepeatVector(256 * 256)(mf)
-    mf = keras.layers.Reshape((256, 256, 1))(mf)
-    x = keras.layers.concatenate([x, d, mf])
     down_list = []
     for stage, filters in enumerate([32, 64, 128, 256, 512, 512]):
         if stage != 0:
@@ -68,9 +61,12 @@ def _train_impl(args):
         down_list.append(x)
 
     x = keras.layers.GlobalAveragePooling2D()(x)
-    gate = builder.dense(1, activation='sigmoid')(x)
     x = builder.dense(32)(x)
     x = builder.act()(x)
+    x = keras.layers.concatenate([x, inputs[1], inputs[2]])
+    x = builder.dense(32)(x)
+    x = builder.act()(x)
+    gate = builder.dense(1, activation='sigmoid')(x)
     x = keras.layers.Reshape((1, 1, -1))(x)
 
     # stage 0: 256
