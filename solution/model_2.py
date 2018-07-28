@@ -60,9 +60,12 @@ def _train_impl(args):
         down_list.append(x)
 
     x = keras.layers.GlobalAveragePooling2D()(x)
-    gate = builder.dense(1, activation='sigmoid')(x)
     x = builder.dense(32)(x)
     x = builder.act()(x)
+    x = keras.layers.concatenate([x, inputs[1]])
+    x = builder.dense(32)(x)
+    x = builder.act()(x)
+    gate = builder.dense(1, activation='sigmoid')(x)
     x = keras.layers.Reshape((1, 1, -1))(x)
 
     # stage 0: 101
@@ -92,11 +95,11 @@ def _train_impl(args):
 
     gen = tk.image.generator.Generator(multiple_input=True)
     gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
+    gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True), input_index=0)
     gen.add(tk.image.RandomPadding(probability=1, with_output=True), input_index=0)
     gen.add(tk.image.RandomRotate(probability=0.25, with_output=True), input_index=0)
     gen.add(tk.image.RandomCrop(probability=1, with_output=True), input_index=0)
     gen.add(tk.image.Resize((101, 101), with_output=True), input_index=0)
-    gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True), input_index=0)
 
     model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
     model.compile(sgd_lr=0.5 / 256, loss='binary_crossentropy', metrics=['acc'])

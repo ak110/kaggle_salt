@@ -84,10 +84,10 @@ def _train_impl(args):
         x = builder.conv2d(filters, 1, use_bn=False, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_bn=False, use_act=False)(d)
         x = keras.layers.add([x, d])
+        x = builder.res_block(filters, dropout=0.25)(x)
+        x = builder.res_block(filters, dropout=0.25)(x)
+        x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.bn_act()(x)
-        x = keras.layers.Dropout(0.25)(x)
-        x = builder.conv2d(filters)(x)
-        x = builder.conv2d(filters)(x)
 
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     x = keras.layers.multiply([x, gate])
@@ -95,10 +95,10 @@ def _train_impl(args):
 
     gen = tk.image.generator.Generator(multiple_input=True)
     gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
+    gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True), input_index=0)
     gen.add(tk.image.RandomPadding(probability=1, with_output=True), input_index=0)
     gen.add(tk.image.RandomRotate(probability=0.25, with_output=True), input_index=0)
     gen.add(tk.image.RandomCrop(probability=1, with_output=True), input_index=0)
-    gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True), input_index=0)
     gen.add(tk.image.Resize((256, 256), with_output=True), input_index=0)
 
     model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)

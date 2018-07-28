@@ -57,9 +57,9 @@ def _train_impl(args):
 
     gen = tk.image.generator.Generator(multiple_input=True)
     gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
+    gen.add(tk.image.RandomFlipLR(probability=0.5), input_index=0)
     gen.add(tk.image.RandomRotate(probability=0.25), input_index=0)
     gen.add(tk.image.Resize((256, 256)), input_index=0)
-    gen.add(tk.image.RandomFlipLR(probability=0.5), input_index=0)
 
     model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
     model.compile(sgd_lr=0.1 / 128, loss='binary_crossentropy', metrics=['acc'])
