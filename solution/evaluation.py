@@ -12,7 +12,7 @@ def log_evaluation(y_val, pred_val, print_fn=None):
     tk.ml.print_classification_metrics(np.ravel(y_val), np.ravel(pred_val), print_fn=print_fn)
 
     # 閾値の最適化
-    threshold_list = np.linspace(0.25, 0.75, 20)
+    threshold_list = np.linspace(0.1, 0.9, 20)
     score1_list = []
     score2_list = []
     for th in tk.tqdm(threshold_list):
