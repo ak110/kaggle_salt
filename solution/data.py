@@ -27,7 +27,7 @@ def load_test_data():
     id_list = pd.read_csv(TEST_PATH)['id'].values
     X = np.array([TEST_IMAGE_DIR / (id_ + '.png') for id_ in id_list])
     d = _load_depths(id_list)
-    return [X, d]
+    return X, d
 
 
 def _load_depths(id_list):
