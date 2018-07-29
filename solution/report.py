@@ -9,7 +9,7 @@ import data
 import evaluation
 import model_bin
 import model_large
-import model_notr_bn
+import model_notr_bin
 import model_small
 import pytoolkit as tk
 
