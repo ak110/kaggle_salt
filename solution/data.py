@@ -45,9 +45,9 @@ def load_mask(y):
     return y
 
 
-def save_submission(save_path, pred_test, threshold):
+def save_submission(save_path, pred):
     id_list = pd.read_csv(TEST_PATH)['id'].values
-    pred_dict = {id_: _encode_rl(pred_test[i, :, :, 0] >= threshold) for i, id_ in enumerate(tk.tqdm(id_list))}
+    pred_dict = {id_: _encode_rl(pred[i]) for i, id_ in enumerate(tk.tqdm(id_list))}
     df = pd.DataFrame.from_dict(pred_dict, orient='index')
     df.index.names = ['id']
     df.columns = ['rle_mask']

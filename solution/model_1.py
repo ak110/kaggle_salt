@@ -30,6 +30,7 @@ def _train():
         _train_impl(args)
 
 
+@tk.log.trace()
 def _train_impl(args):
     logger = tk.log.get(__name__)
     logger.info(f'args: {args}')
@@ -51,9 +52,10 @@ def _train_impl(args):
     x = inputs[0]
     x = builder.preprocess()(x)
     down_list = []
-    for stage, filters in enumerate([32, 64, 128, 256, 512, 512]):
+    for stage, filters in enumerate([16, 32, 64, 128, 256, 512]):
         if stage != 0:
             x = keras.layers.MaxPooling2D(padding='same')(x)
+        x = builder.conv2d(filters)(x)
         x = builder.conv2d(filters)(x)
         x = builder.conv2d(filters)(x)
         down_list.append(x)
@@ -75,7 +77,7 @@ def _train_impl(args):
     # stage 5: 8
     for stage, d in list(enumerate(down_list))[::-1]:
         filters = builder.shape(d)[-1]
-        if stage == 5:
+        if stage == len(down_list) - 1:
             x = builder.conv2dtr(32, 8, strides=8)(x)
         else:
             x = builder.conv2dtr(filters // 4, 2, strides=2)(x)
@@ -84,7 +86,7 @@ def _train_impl(args):
         x = keras.layers.add([x, d])
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.res_block(filters, dropout=0.25)(x)
-        x = builder.res_block(filters, dropout=0.25)(x) if stage > 0 else x
+        x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.bn_act()(x)
 
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
@@ -112,21 +114,23 @@ def _train_impl(args):
 
     if tk.dl.hvd.is_master():
         pred_val = model.predict(X_val)
-        pred_val = np.array([tk.ndimage.resize(p, 101, 101) for p in pred_val])  # リサイズ
         joblib.dump(pred_val, MODELS_DIR / f'pred-val.fold{args.cv_index}.h5')
         evaluation.log_evaluation(y_val, pred_val)
 
 
+@tk.log.trace()
 def load_oofp(X, y):
     """out-of-fold predictionを読み込んで返す。"""
     pred = np.empty((len(y), 101, 101, 1), dtype=np.float32)
     for cv_index in range(CV_COUNT):
         _, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=cv_index, split_seed=SPLIT_SEED, stratify=False)
         pred[vi] = joblib.load(MODELS_DIR / f'pred-val.fold{cv_index}.h5')
-    # TODO: pred = np.array([utils.apply_crf(tk.ndimage.load(x, grayscale=True), p) for x, p in zip(X, tk.tqdm(pred))])
+    pred = np.array([tk.ndimage.resize(p, 101, 101) for p in pred])  # リサイズ
+    pred = utils.apply_crf_all(X, pred)
     return pred
 
 
+@tk.log.trace()
 def predict(ensemble):
     """予測。"""
     X, d = data.load_test_data()
@@ -141,8 +145,8 @@ def predict(ensemble):
             gen.add(tk.image.Resize((256, 256)), input_index=0)
             model = tk.dl.models.Model(network, gen, batch_size=32)
             pred = model.predict(X, verbose=1)
-            pred = [tk.ndimage.resize(p, 101, 101) for p in tk.tqdm(pred)]
-            pred = np.array([utils.apply_crf(tk.ndimage.load(x, grayscale=True), p) for x, p in zip(X[0], tk.tqdm(pred))])
+            pred = [tk.ndimage.resize(p, 101, 101) for p in tk.tqdm(pred)]  # リサイズ
+            pred = utils.apply_crf_all(X[0], pred)
             pred_list.append(pred)
             if not ensemble:
                 break

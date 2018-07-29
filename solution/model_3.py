@@ -27,6 +27,7 @@ def _train():
         _train_impl(args)
 
 
+@tk.log.trace()
 def _train_impl(args):
     logger = tk.log.get(__name__)
     logger.info(f'args: {args}')
@@ -78,6 +79,7 @@ def _train_impl(args):
         tk.ml.print_classification_metrics(y_val, pred_val)
 
 
+@tk.log.trace()
 def load_oofp(X, y):
     """out-of-fold predictionを読み込んで返す。"""
     pred = np.empty((len(y), 1), dtype=np.float32)
@@ -87,6 +89,7 @@ def load_oofp(X, y):
     return pred
 
 
+@tk.log.trace()
 def predict(ensemble):
     """予測。"""
     X, d = data.load_test_data()

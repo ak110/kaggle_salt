@@ -1,15 +1,27 @@
 """
 pip install -U pydensecrf
 """
+
 import numpy as np
 import pydensecrf.densecrf as dcrf
 import pydensecrf.utils
+import sklearn.externals.joblib as joblib
+
+import pytoolkit as tk
 
 
-def apply_crf(original_image, mask_image):
+def apply_crf_all(X, pred):
+    jobs = [joblib.delayed(apply_crf, check_pickle=False)(x, p) for x, p in zip(X, pred)]
+    with joblib.Parallel(backend='threading') as parallel:
+        pred = parallel(jobs)
+    return np.array(pred)
+
+
+def apply_crf(original_image_path, mask_image):
     """
     Function which returns the labelled image after applying CRF
     """
+    original_image = tk.ndimage.load(original_image_path, grayscale=True)
 
     n_labels = 2
     d = dcrf.DenseCRF2D(original_image.shape[1], original_image.shape[0], n_labels)
