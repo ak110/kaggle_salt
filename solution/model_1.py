@@ -7,6 +7,7 @@ import numpy as np
 import sklearn.externals.joblib as joblib
 
 import data
+import model_3
 import evaluation
 import pytoolkit as tk
 import utils
@@ -33,11 +34,8 @@ def _train_impl(args):
     logger = tk.log.get(__name__)
     logger.info(f'args: {args}')
     X, d, y = data.load_train_data()
-    y = data.load_mask(y)
-
-    import model_3
     mf = model_3.load_oofp(X, y)
-
+    y = data.load_mask(y)
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=SPLIT_SEED, stratify=False)
     (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti], mf[ti]], y[ti]), ([X[vi], d[vi], mf[vi]], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
@@ -127,6 +125,28 @@ def load_oofp(X, y):
         pred[vi] = joblib.load(MODELS_DIR / f'pred-val.fold{cv_index}.h5')
     # TODO: pred = np.array([utils.apply_crf(tk.ndimage.load(x, grayscale=True), p) for x, p in zip(X, tk.tqdm(pred))])
     return pred
+
+
+def predict(ensemble):
+    """予測。"""
+    X, d = data.load_test_data()
+    mf_list = model_3.predict(ensemble)
+    pred_list = []
+    for mf in mf_list:
+        X = [X, d, mf]
+        for cv_index in range(CV_COUNT):
+            network = tk.dl.models.load_model(MODELS_DIR / f'model.fold{cv_index}.h5', compile=False)
+            gen = tk.image.generator.Generator(multiple_input=True)
+            gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
+            gen.add(tk.image.Resize((256, 256)), input_index=0)
+            model = tk.dl.models.Model(network, gen, batch_size=32)
+            pred = model.predict(X, verbose=1)
+            pred = [tk.ndimage.resize(p, 101, 101) for p in tk.tqdm(pred)]
+            pred = np.array([utils.apply_crf(tk.ndimage.load(x, grayscale=True), p) for x, p in zip(X, tk.tqdm(pred))])
+            pred_list.append(pred)
+            if not ensemble:
+                break
+    return pred_list
 
 
 if __name__ == '__main__':
