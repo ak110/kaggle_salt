@@ -1,27 +1,26 @@
-[INFO ] Accuracy: 0.956 <report_model_1:ml.py:532>
-[INFO ] F1-score: 0.911 <report_model_1:ml.py:533>
-[INFO ] AUC:      0.982 <report_model_1:ml.py:534>
-[INFO ] Logloss:  0.125 <report_model_1:ml.py:535>
-[INFO ] max score1: 0.818 (threshold: 0.437) <report_model_1:evaluation.py:25>
-[INFO ] max score2: 0.803 (threshold: 0.437) <report_model_1:evaluation.py:26>
-[INFO ] scores: <report_model_1:evaluation.py:27>
-[INFO ]   threshold=0.100: score1=0.740 score2=0.719 <report_model_1:evaluation.py:29>
-[INFO ]   threshold=0.142: score1=0.766 score2=0.747 <report_model_1:evaluation.py:29>
-[INFO ]   threshold=0.184: score1=0.783 score2=0.766 <report_model_1:evaluation.py:29>
-[INFO ]   threshold=0.226: score1=0.794 score2=0.778 <report_model_1:evaluation.py:29>
-[INFO ]   threshold=0.268: score1=0.803 score2=0.787 <report_model_1:evaluation.py:29>
-[INFO ]   threshold=0.311: score1=0.809 score2=0.794 <report_model_1:evaluation.py:29>
-[INFO ]   threshold=0.353: score1=0.813 score2=0.799 <report_model_1:evaluation.py:29>
-[INFO ]   threshold=0.395: score1=0.816 score2=0.801 <report_model_1:evaluation.py:29>
-[INFO ]   threshold=0.437: score1=0.818 score2=0.803 <report_model_1:evaluation.py:29>
-[INFO ]   threshold=0.479: score1=0.817 score2=0.802 <report_model_1:evaluation.py:29>
-[INFO ]   threshold=0.521: score1=0.816 score2=0.801 <report_model_1:evaluation.py:29>
-[INFO ]   threshold=0.563: score1=0.814 score2=0.799 <report_model_1:evaluation.py:29>
-[INFO ]   threshold=0.605: score1=0.813 score2=0.798 <report_model_1:evaluation.py:29>
-[INFO ]   threshold=0.647: score1=0.810 score2=0.795 <report_model_1:evaluation.py:29>
-[INFO ]   threshold=0.689: score1=0.807 score2=0.792 <report_model_1:evaluation.py:29>
-[INFO ]   threshold=0.732: score1=0.804 score2=0.789 <report_model_1:evaluation.py:29>
-[INFO ]   threshold=0.774: score1=0.800 score2=0.784 <report_model_1:evaluation.py:29>
-[INFO ]   threshold=0.816: score1=0.791 score2=0.775 <report_model_1:evaluation.py:29>
-[INFO ]   threshold=0.858: score1=0.779 score2=0.763 <report_model_1:evaluation.py:29>
-[INFO ]   threshold=0.900: score1=0.762 score2=0.744 <report_model_1:evaluation.py:29>
+[INFO ] Accuracy: 0.956 <report_model_large:ml.py:532>
+[INFO ] F1-score: 0.910 <report_model_large:ml.py:533>
+[INFO ] AUC:      0.982 <report_model_large:ml.py:534>
+[INFO ] Logloss:  0.195 <report_model_large:ml.py:535>
+[INFO ] max score: 0.805 (threshold: 0.268) <report_model_large:evaluation.py:21>
+[INFO ] scores: <report_model_large:evaluation.py:22>
+[INFO ]   threshold=0.100: score=0.798 <report_model_large:evaluation.py:24>
+[INFO ]   threshold=0.142: score=0.803 <report_model_large:evaluation.py:24>
+[INFO ]   threshold=0.184: score=0.804 <report_model_large:evaluation.py:24>
+[INFO ]   threshold=0.226: score=0.805 <report_model_large:evaluation.py:24>
+[INFO ]   threshold=0.268: score=0.805 <report_model_large:evaluation.py:24>
+[INFO ]   threshold=0.311: score=0.805 <report_model_large:evaluation.py:24>
+[INFO ]   threshold=0.353: score=0.805 <report_model_large:evaluation.py:24>
+[INFO ]   threshold=0.395: score=0.804 <report_model_large:evaluation.py:24>
+[INFO ]   threshold=0.437: score=0.804 <report_model_large:evaluation.py:24>
+[INFO ]   threshold=0.479: score=0.803 <report_model_large:evaluation.py:24>
+[INFO ]   threshold=0.521: score=0.802 <report_model_large:evaluation.py:24>
+[INFO ]   threshold=0.563: score=0.802 <report_model_large:evaluation.py:24>
+[INFO ]   threshold=0.605: score=0.801 <report_model_large:evaluation.py:24>
+[INFO ]   threshold=0.647: score=0.799 <report_model_large:evaluation.py:24>
+[INFO ]   threshold=0.689: score=0.798 <report_model_large:evaluation.py:24>
+[INFO ]   threshold=0.732: score=0.796 <report_model_large:evaluation.py:24>
+[INFO ]   threshold=0.774: score=0.793 <report_model_large:evaluation.py:24>
+[INFO ]   threshold=0.816: score=0.791 <report_model_large:evaluation.py:24>
+[INFO ]   threshold=0.858: score=0.788 <report_model_large:evaluation.py:24>
+[INFO ]   threshold=0.900: score=0.782 <report_model_large:evaluation.py:24>
