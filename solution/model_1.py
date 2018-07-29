@@ -142,7 +142,7 @@ def predict(ensemble):
             model = tk.dl.models.Model(network, gen, batch_size=32)
             pred = model.predict(X, verbose=1)
             pred = [tk.ndimage.resize(p, 101, 101) for p in tk.tqdm(pred)]
-            pred = np.array([utils.apply_crf(tk.ndimage.load(x, grayscale=True), p) for x, p in zip(X, tk.tqdm(pred))])
+            pred = np.array([utils.apply_crf(tk.ndimage.load(x, grayscale=True), p) for x, p in zip(X[0], tk.tqdm(pred))])
             pred_list.append(pred)
             if not ensemble:
                 break
