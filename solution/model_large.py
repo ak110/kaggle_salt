@@ -114,6 +114,7 @@ def _train_impl(args):
 
     if tk.dl.hvd.is_master():
         pred_val = model.predict(X_val)
+        pred_val = np.array([tk.ndimage.resize(p, 101, 101) for p in pred_val])  # リサイズ
         joblib.dump(pred_val, MODELS_DIR / f'pred-val.fold{args.cv_index}.h5')
         evaluation.log_evaluation(y_val, pred_val)
 
@@ -125,7 +126,6 @@ def load_oofp(X, y):
     for cv_index in range(CV_COUNT):
         _, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=cv_index, split_seed=SPLIT_SEED, stratify=False)
         pred[vi] = joblib.load(MODELS_DIR / f'pred-val.fold{cv_index}.h5')
-    pred = np.array([tk.ndimage.resize(p, 101, 101) for p in pred])  # リサイズ
     pred = utils.apply_crf_all(X, pred)
     return pred
 
