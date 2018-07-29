@@ -7,6 +7,7 @@ import numpy as np
 import sklearn.externals.joblib as joblib
 
 import data
+import model_bin
 import evaluation
 import pytoolkit as tk
 import utils
@@ -34,9 +35,10 @@ def _train_impl(args):
     logger = tk.log.get(__name__)
     logger.info(f'args: {args}')
     X, d, y = data.load_train_data()
+    mf = model_bin.load_oofp(X, y)
     y = data.load_mask(y)
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=SPLIT_SEED, stratify=False)
-    (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti]], y[ti]), ([X[vi], d[vi]], y[vi])
+    (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti], mf[ti]], y[ti]), ([X[vi], d[vi], mf[vi]], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
 
     import keras
@@ -44,23 +46,24 @@ def _train_impl(args):
 
     inputs = [
         builder.input_tensor((101, 101, 1)),
-        builder.input_tensor((1,)),
+        builder.input_tensor((1,)),  # depths
+        builder.input_tensor((1,)),  # model_bin
     ]
     x = inputs[0]
     x = builder.preprocess()(x)
     down_list = []
-    for stage, filters in enumerate([64, 128, 256, 512, 512]):
+    for stage, filters in enumerate([32, 64, 128, 256, 512]):
         if stage != 0:
             x = keras.layers.MaxPooling2D(padding='same')(x)
         x = builder.conv2d(filters)(x)
         x = builder.conv2d(filters)(x)
-        x = keras.layers.Dropout(0.25)
+        x = builder.conv2d(filters)(x)
         down_list.append(x)
 
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(32)(x)
     x = builder.act()(x)
-    x = keras.layers.concatenate([x, inputs[1]])
+    x = keras.layers.concatenate([x, inputs[1], inputs[2]])
     x = builder.dense(32)(x)
     x = builder.act()(x)
     gate = builder.dense(1, activation='sigmoid')(x)
@@ -82,10 +85,10 @@ def _train_impl(args):
         x = builder.conv2d(filters, 1, use_bn=False, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_bn=False, use_act=False)(d)
         x = keras.layers.add([x, d])
+        x = builder.res_block(filters, dropout=0.25)(x)
+        x = builder.res_block(filters, dropout=0.25)(x)
+        x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.bn_act()(x)
-        x = builder.conv2d(filters)(x)
-        x = builder.conv2d(filters)(x)
-        x = builder.conv2d(filters)(x)
 
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     x = keras.layers.multiply([x, gate])
