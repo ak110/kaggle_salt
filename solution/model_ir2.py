@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""256x256でInceptionResNetV2でやってみるやつ。"""
+"""256x256 + InceptionResNetV2。"""
 import argparse
 import pathlib
 
@@ -12,7 +12,7 @@ import evaluation
 import pytoolkit as tk
 import utils
 
-MODELS_DIR = pathlib.Path('models/model_large')
+MODELS_DIR = pathlib.Path('models/model_ir2')
 SPLIT_SEED = 123
 CV_COUNT = 5
 OUTPUT_TYPE = 'mask'
@@ -23,7 +23,7 @@ def _train():
     parser = argparse.ArgumentParser()
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
     parser.add_argument('--batch-size', default=12, type=int)
-    parser.add_argument('--epochs', default=100, type=int)
+    parser.add_argument('--epochs', default=300, type=int)
     args = parser.parse_args()
     with tk.dl.session(use_horovod=True):
         tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
@@ -50,17 +50,20 @@ def _train_impl(args):
         builder.input_tensor((1,)),  # model_bin
     ]
     x = inputs[0]
-    x = builder.preprocess()(x)
+    x = x256 = builder.preprocess()(x)
     x = keras.layers.concatenate([x, x, x])
     base_network = keras.applications.InceptionResNetV2(include_top=False, input_tensor=x)
     x = base_network.outputs[0]
+    x256 = builder.conv2d(16)(x256)
+    x256 = builder.conv2d(16)(x256)
+    x256 = builder.conv2d(16)(x256)
     down_list = []
-    down_list.append(base_network.inputs[0])  # 256
-    down_list.append(base_network.get_layer(name='activation_3').output)  # 128
-    down_list.append(base_network.get_layer(name='activation_5').output)  # 64
-    down_list.append(base_network.get_layer(name='block35_10_ac').output)  # 32
-    down_list.append(base_network.get_layer(name='block17_20_ac').output)  # 16
-    down_list.append(base_network.get_layer(name='conv_7b_ac').output)  # 8
+    down_list.append(x256)  # stage 0: 256
+    down_list.append(base_network.get_layer(name='activation_3').output)  # stage 1: 125
+    down_list.append(base_network.get_layer(name='activation_5').output)  # stage 2: 60
+    down_list.append(base_network.get_layer(name='block35_10_ac').output)  # stage 3: 29
+    down_list.append(base_network.get_layer(name='block17_20_ac').output)  # stage 4: 14
+    down_list.append(base_network.get_layer(name='conv_7b_ac').output)  # stage 5: 6
 
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(32)(x)
@@ -71,18 +74,19 @@ def _train_impl(args):
     gate = builder.dense(1, activation='sigmoid')(x)
     x = keras.layers.Reshape((1, 1, -1))(x)
 
-    # stage 0: 256
-    # stage 1: 128
-    # stage 2: 64
-    # stage 3: 32
-    # stage 4: 16
-    # stage 5: 8
-    for stage, d in list(enumerate(down_list))[::-1]:
-        filters = builder.shape(d)[-1]
+    for stage, (d, filters) in list(enumerate(zip(down_list, [16, 32, 64, 128, 256, 512])))[::-1]:
         if stage == len(down_list) - 1:
-            x = builder.conv2dtr(32, 8, strides=8)(x)
+            x = builder.conv2dtr(32, 6, strides=6)(x)
         else:
             x = builder.conv2dtr(filters // 4, 2, strides=2)(x)
+            if stage in (4, 2):
+                x = tk.dl.layers.pad2d()(padding=((1, 1), (1, 1)), mode='reflect')(x)
+            elif stage in (3,):
+                x = tk.dl.layers.pad2d()(padding=((0, 1), (0, 1)), mode='reflect')(x)
+            elif stage in (1,):
+                x = tk.dl.layers.pad2d()(padding=((2, 3), (2, 3)), mode='reflect')(x)
+            elif stage in (0,):
+                x = tk.dl.layers.pad2d()(padding=((3, 3), (3, 3)), mode='reflect')(x)
         x = builder.conv2d(filters, 1, use_bn=False, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_bn=False, use_act=False)(d)
         x = keras.layers.add([x, d])
@@ -104,7 +108,8 @@ def _train_impl(args):
     gen.add(tk.image.Resize((256, 256), with_output=True), input_index=0)
 
     model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
-    model.compile(sgd_lr=0.5 / 256, loss='binary_crossentropy', metrics=['acc'])
+    lr_multipliers = {l: 0.1 for l in base_network.layers}
+    model.compile(sgd_lr=0.5 / 256, loss='binary_crossentropy', metrics=['acc'], lr_multipliers=lr_multipliers)
     model.summary()
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
