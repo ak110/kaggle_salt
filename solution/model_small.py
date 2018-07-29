@@ -54,7 +54,7 @@ def _train_impl(args):
             x = keras.layers.MaxPooling2D(padding='same')(x)
         x = builder.conv2d(filters)(x)
         x = builder.conv2d(filters)(x)
-        x = builder.conv2d(filters)(x)
+        x = keras.layers.Dropout(0.25)
         down_list.append(x)
 
     x = keras.layers.GlobalAveragePooling2D()(x)
@@ -82,10 +82,10 @@ def _train_impl(args):
         x = builder.conv2d(filters, 1, use_bn=False, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_bn=False, use_act=False)(d)
         x = keras.layers.add([x, d])
-        x = builder.res_block(filters, dropout=0.25)(x)
-        x = builder.res_block(filters, dropout=0.25)(x)
-        x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.bn_act()(x)
+        x = builder.conv2d(filters)(x)
+        x = builder.conv2d(filters)(x)
+        x = builder.conv2d(filters)(x)
 
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     x = keras.layers.multiply([x, gate])
