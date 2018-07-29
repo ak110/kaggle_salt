@@ -15,7 +15,7 @@ def _main():
     with tk.dl.session():
         tk.log.init(MODELS_DIR / 'predict.log')
 
-        pred = model_1.predict(ensemble=False)  # TODO: ensemble
+        pred = model_1.predict(ensemble=False)[0]  # TODO: ensemble
         data.save_submission(MODELS_DIR / 'submission.csv', pred, THRESHOLD)
 
 
