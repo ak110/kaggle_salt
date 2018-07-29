@@ -4,7 +4,7 @@ import pathlib
 import numpy as np
 
 import data
-import model_1
+import model_large
 import pytoolkit as tk
 
 MODELS_DIR = pathlib.Path('models')
@@ -22,7 +22,7 @@ def _main():
 
 @tk.log.trace()
 def _run():
-    pred_list = model_1.predict(ensemble=ENSEMBLE)
+    pred_list = model_large.predict(ensemble=ENSEMBLE)
     pred = np.sum([p > THRESHOLD for p in pred_list]) > len(pred_list) / 2  # hard voting
     data.save_submission(MODELS_DIR / 'submission.csv', pred)
 

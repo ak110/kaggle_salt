@@ -7,15 +7,15 @@ import sklearn.metrics
 
 import data
 import evaluation
-import model_1
-import model_2
-import model_3
-import model_4
+import model_bin
+import model_large
+import model_notr_bn
+import model_small
 import pytoolkit as tk
 
 MODELS_DIR = pathlib.Path('models')
 REPORTS_DIR = pathlib.Path('reports')
-MODELS = {m.__name__: m for m in [model_1, model_2, model_3, model_4]}
+MODELS = {m.__name__: m for m in [model_large, model_small, model_bin, model_notr_bn]}
 
 
 def _main():

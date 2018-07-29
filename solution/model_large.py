@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""101x101で素直にやってみるやつ。"""
+"""256x256でやってみるやつ。"""
 import argparse
 import pathlib
 
@@ -7,12 +7,13 @@ import numpy as np
 import sklearn.externals.joblib as joblib
 
 import data
+import model_bin
 import evaluation
 import pytoolkit as tk
 import utils
 
-MODELS_DIR = pathlib.Path('models/model_2')
-SPLIT_SEED = 234
+MODELS_DIR = pathlib.Path('models/model_large')
+SPLIT_SEED = 123
 CV_COUNT = 5
 OUTPUT_TYPE = 'mask'
 
@@ -21,7 +22,7 @@ def _train():
     tk.better_exceptions()
     parser = argparse.ArgumentParser()
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
-    parser.add_argument('--batch-size', default=32, type=int)
+    parser.add_argument('--batch-size', default=16, type=int)
     parser.add_argument('--epochs', default=300, type=int)
     args = parser.parse_args()
     with tk.dl.session(use_horovod=True):
@@ -34,22 +35,24 @@ def _train_impl(args):
     logger = tk.log.get(__name__)
     logger.info(f'args: {args}')
     X, d, y = data.load_train_data()
+    mf = model_bin.load_oofp(X, y)
     y = data.load_mask(y)
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=SPLIT_SEED, stratify=False)
-    (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti]], y[ti]), ([X[vi], d[vi]], y[vi])
+    (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti], mf[ti]], y[ti]), ([X[vi], d[vi], mf[vi]], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
 
     import keras
     builder = tk.dl.networks.Builder()
 
     inputs = [
-        builder.input_tensor((101, 101, 1)),
-        builder.input_tensor((1,)),
+        builder.input_tensor((256, 256, 1)),
+        builder.input_tensor((1,)),  # depths
+        builder.input_tensor((1,)),  # model_bin
     ]
     x = inputs[0]
     x = builder.preprocess()(x)
     down_list = []
-    for stage, filters in enumerate([64, 128, 256, 512, 512]):
+    for stage, filters in enumerate([16, 32, 64, 128, 256, 512]):
         if stage != 0:
             x = keras.layers.MaxPooling2D(padding='same')(x)
         x = builder.conv2d(filters)(x)
@@ -60,25 +63,24 @@ def _train_impl(args):
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(32)(x)
     x = builder.act()(x)
-    x = keras.layers.concatenate([x, inputs[1]])
+    x = keras.layers.concatenate([x, inputs[1], inputs[2]])
     x = builder.dense(32)(x)
     x = builder.act()(x)
     gate = builder.dense(1, activation='sigmoid')(x)
     x = keras.layers.Reshape((1, 1, -1))(x)
 
-    # stage 0: 101
-    # stage 1: 51
-    # stage 2: 26
-    # stage 3: 13
-    # stage 4: 7
+    # stage 0: 256
+    # stage 1: 128
+    # stage 2: 64
+    # stage 3: 32
+    # stage 4: 16
+    # stage 5: 8
     for stage, d in list(enumerate(down_list))[::-1]:
         filters = builder.shape(d)[-1]
         if stage == len(down_list) - 1:
-            x = builder.conv2dtr(32, 7, strides=7)(x)
+            x = builder.conv2dtr(32, 8, strides=8)(x)
         else:
             x = builder.conv2dtr(filters // 4, 2, strides=2)(x)
-            if stage in (0, 1, 3):
-                x = keras.layers.Cropping2D(((0, 1), (0, 1)))(x)
         x = builder.conv2d(filters, 1, use_bn=False, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_bn=False, use_act=False)(d)
         x = keras.layers.add([x, d])
@@ -97,7 +99,7 @@ def _train_impl(args):
     gen.add(tk.image.RandomPadding(probability=1, with_output=True), input_index=0)
     gen.add(tk.image.RandomRotate(probability=0.25, with_output=True), input_index=0)
     gen.add(tk.image.RandomCrop(probability=1, with_output=True), input_index=0)
-    gen.add(tk.image.Resize((101, 101), with_output=True), input_index=0)
+    gen.add(tk.image.Resize((256, 256), with_output=True), input_index=0)
 
     model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
     model.compile(sgd_lr=0.5 / 256, loss='binary_crossentropy', metrics=['acc'])
@@ -123,6 +125,7 @@ def load_oofp(X, y):
     for cv_index in range(CV_COUNT):
         _, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=cv_index, split_seed=SPLIT_SEED, stratify=False)
         pred[vi] = joblib.load(MODELS_DIR / f'pred-val.fold{cv_index}.h5')
+    pred = np.array([tk.ndimage.resize(p, 101, 101) for p in pred])  # リサイズ
     pred = utils.apply_crf_all(X, pred)
     return pred
 
@@ -131,18 +134,22 @@ def load_oofp(X, y):
 def predict(ensemble):
     """予測。"""
     X, d = data.load_test_data()
-    X = [X, d]
+    mf_list = model_bin.predict(ensemble)
     pred_list = []
-    for cv_index in range(CV_COUNT):
-        network = tk.dl.models.load_model(MODELS_DIR / f'model.fold{cv_index}.h5', compile=False)
-        gen = tk.image.generator.Generator(multiple_input=True)
-        gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
-        model = tk.dl.models.Model(network, gen, batch_size=32)
-        pred = model.predict(X, verbose=1)
-        pred = utils.apply_crf_all(X[0], pred)
-        pred_list.append(pred)
-        if not ensemble:
-            break
+    for mf in mf_list:
+        X = [X, d, mf]
+        for cv_index in range(CV_COUNT):
+            network = tk.dl.models.load_model(MODELS_DIR / f'model.fold{cv_index}.h5', compile=False)
+            gen = tk.image.generator.Generator(multiple_input=True)
+            gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
+            gen.add(tk.image.Resize((256, 256)), input_index=0)
+            model = tk.dl.models.Model(network, gen, batch_size=32)
+            pred = model.predict(X, verbose=1)
+            pred = [tk.ndimage.resize(p, 101, 101) for p in tk.tqdm(pred)]  # リサイズ
+            pred = utils.apply_crf_all(X[0], pred)
+            pred_list.append(pred)
+            if not ensemble:
+                break
     return pred_list
 
 

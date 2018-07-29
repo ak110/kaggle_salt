@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""有無のみを2クラス分類するやつ。"""
+"""有無のみを2クラス分類するやつ。(転移学習無し版)"""
 import argparse
 import pathlib
 
@@ -9,8 +9,8 @@ import sklearn.externals.joblib as joblib
 import data
 import pytoolkit as tk
 
-MODELS_DIR = pathlib.Path('models/model_3')
-SPLIT_SEED = 345
+MODELS_DIR = pathlib.Path('models/model_notr_bin')
+SPLIT_SEED = 456
 CV_COUNT = 5
 OUTPUT_TYPE = 'bin'
 
@@ -19,8 +19,8 @@ def _train():
     tk.better_exceptions()
     parser = argparse.ArgumentParser()
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
-    parser.add_argument('--batch-size', default=8, type=int)
-    parser.add_argument('--epochs', default=40, type=int)
+    parser.add_argument('--batch-size', default=16, type=int)
+    parser.add_argument('--epochs', default=300, type=int)
     args = parser.parse_args()
     with tk.dl.session(use_horovod=True):
         tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
@@ -38,22 +38,25 @@ def _train_impl(args):
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
 
     import keras
+    builder = tk.dl.networks.Builder()
     inputs = [
-        keras.layers.Input((256, 256, 1)),
-        keras.layers.Input((1,)),
+        builder.input_tensor((256, 256, 1)),
+        builder.input_tensor((1,)),
     ]
     x = inputs[0]
     x = tk.dl.layers.preprocess()(mode='tf')(x)
     d = inputs[1]
     d = keras.layers.RepeatVector(256 * 256)(d)
     d = keras.layers.Reshape((256, 256, 1))(d)
-    x = keras.layers.concatenate([x, x, d])
-    base_model = keras.applications.NASNetLarge(include_top=False, input_tensor=x)
-    x = base_model.outputs[0]
+    x = keras.layers.concatenate([x, d])
+    x = builder.conv2d(32, 7, strides=2)(x)
+    for filters in [64, 128, 256, 512]:
+        x = builder.conv2d(filters, strides=2, use_act=False)(x)
+        for _ in range(6):
+            x = builder.res_block(filters, dropout=0.25)(x)
+        x = builder.bn_act()(x)
     x = keras.layers.GlobalAveragePooling2D()(x)
-    x = keras.layers.Dense(1, activation='sigmoid',
-                           kernel_initializer='zeros',
-                           kernel_regularizer=keras.regularizers.l2(1e-4))(x)
+    x = builder.dense(1, activation='sigmoid')(x)
     network = keras.models.Model(inputs, x)
 
     gen = tk.image.generator.Generator(multiple_input=True)
@@ -63,7 +66,7 @@ def _train_impl(args):
     gen.add(tk.image.Resize((256, 256)), input_index=0)
 
     model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
-    model.compile(sgd_lr=0.1 / 128, loss='binary_crossentropy', metrics=['acc'])
+    model.compile(sgd_lr=0.5 / 256, loss='binary_crossentropy', metrics=['acc'])
     model.summary()
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
@@ -100,7 +103,7 @@ def predict(ensemble):
         gen = tk.image.generator.Generator(multiple_input=True)
         gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
         gen.add(tk.image.Resize((256, 256)), input_index=0)
-        model = tk.dl.models.Model(network, gen, batch_size=16)
+        model = tk.dl.models.Model(network, gen, batch_size=32)
         pred_list.append(model.predict(X, verbose=1))
         if not ensemble:
             break
