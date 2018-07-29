@@ -50,8 +50,8 @@ def _train_impl(args):
         builder.input_tensor((1,)),  # model_bin
     ]
     x = inputs[0]
-    x = builder.preprocess(mode='caffe')(x)
     x = keras.layers.concatenate([x, x, x])
+    x = builder.preprocess(mode='caffe')(x)
     base_network = keras.applications.VGG16(include_top=False, input_tensor=x)
     x = base_network.outputs[0]
     down_list = []
