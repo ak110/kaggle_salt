@@ -50,43 +50,42 @@ def _train_impl(args):
         builder.input_tensor((1,)),  # model_bin
     ]
     x = inputs[0]
-    x = x256 = builder.preprocess()(x)
+    x = builder.preprocess()(x)
     x = keras.layers.concatenate([x, x, x])
     base_network = keras.applications.InceptionResNetV2(include_top=False, input_tensor=x)
-    x = base_network.outputs[0]
-    x256 = builder.conv2d(16)(x256)
-    x256 = builder.conv2d(16)(x256)
-    x256 = builder.conv2d(16)(x256)
     down_list = []
-    down_list.append(x256)  # stage 0: 256
-    down_list.append(base_network.get_layer(name='activation_3').output)  # stage 1: 125
-    down_list.append(base_network.get_layer(name='activation_5').output)  # stage 2: 60
-    down_list.append(base_network.get_layer(name='block35_10_ac').output)  # stage 3: 29
-    down_list.append(base_network.get_layer(name='block17_20_ac').output)  # stage 4: 14
-    down_list.append(base_network.get_layer(name='conv_7b_ac').output)  # stage 5: 6
-
+    down_list.append(base_network.get_layer(name='activation_3').output)  # stage 0: 125
+    down_list.append(base_network.get_layer(name='activation_5').output)  # stage 1: 60
+    down_list.append(base_network.get_layer(name='block35_10_ac').output)  # stage 2: 29
+    down_list.append(base_network.get_layer(name='block17_20_ac').output)  # stage 3: 14
+    down_list.append(base_network.get_layer(name='conv_7b_ac').output)  # stage 4: 6
+    x = base_network.outputs[0]
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(32)(x)
     x = builder.act()(x)
     x = keras.layers.concatenate([x, inputs[1], inputs[2]])
-    x = builder.dense(32)(x)
+    x = builder.dense(128)(x)
     x = builder.act()(x)
     gate = builder.dense(1, activation='sigmoid')(x)
     x = keras.layers.Reshape((1, 1, -1))(x)
 
-    for stage, (d, filters) in list(enumerate(zip(down_list, [16, 32, 64, 128, 256, 512])))[::-1]:
+    # stage 4: 7
+    # stage 3: 14
+    # stage 2: 28
+    # stage 1: 56
+    # stage 0: 112
+    for stage, (d, filters) in list(enumerate(zip(down_list, [32, 64, 128, 256, 512])))[::-1]:
         if stage == len(down_list) - 1:
-            x = builder.conv2dtr(32, 6, strides=6)(x)
+            x = builder.conv2dtr(32, 7, strides=7)(x)
+            d = tk.dl.layers.pad2d()(((0, 1), (0, 1)), mode='reflect')(d)
         else:
-            x = builder.conv2dtr(filters // 4, 2, strides=2)(x)
-            if stage in (4, 2):
-                x = tk.dl.layers.pad2d()(padding=((1, 1), (1, 1)), mode='reflect')(x)
-            elif stage in (3,):
-                x = tk.dl.layers.pad2d()(padding=((0, 1), (0, 1)), mode='reflect')(x)
+            x = builder.conv2dtr(filters // 2, 2, strides=2)(x)
+            if stage in (2,):
+                d = keras.layers.Cropping2D(((0, 1), (0, 1)))(d)
             elif stage in (1,):
-                x = tk.dl.layers.pad2d()(padding=((2, 3), (2, 3)), mode='reflect')(x)
+                d = keras.layers.Cropping2D(((2, 2), (2, 2)))(d)
             elif stage in (0,):
-                x = tk.dl.layers.pad2d()(padding=((3, 3), (3, 3)), mode='reflect')(x)
+                d = keras.layers.Cropping2D(((6, 7), (6, 7)))(d)
         x = builder.conv2d(filters, 1, use_bn=False, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_bn=False, use_act=False)(d)
         x = keras.layers.add([x, d])
@@ -94,7 +93,7 @@ def _train_impl(args):
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.bn_act()(x)
-
+    x = keras.layers.Cropping2D(((5, 6), (5, 6)))(x)
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     x = keras.layers.multiply([x, gate])
     network = keras.models.Model(inputs, x)
@@ -105,7 +104,8 @@ def _train_impl(args):
     gen.add(tk.image.RandomPadding(probability=1, with_output=True), input_index=0)
     gen.add(tk.image.RandomRotate(probability=0.25, with_output=True), input_index=0)
     gen.add(tk.image.RandomCrop(probability=1, with_output=True), input_index=0)
-    gen.add(tk.image.Resize((256, 256), with_output=True), input_index=0)
+    gen.add(tk.image.Resize((256, 256)), input_index=0)
+    gen.add(tk.generator.ProcessOutput(lambda y: tk.ndimage.resize(y, 101, 101)))
 
     model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
     lr_multipliers = {l: 0.1 for l in base_network.layers}
@@ -121,7 +121,6 @@ def _train_impl(args):
 
     if tk.dl.hvd.is_master():
         pred_val = model.predict(X_val)
-        pred_val = np.array([tk.ndimage.resize(p, 101, 101) for p in pred_val])  # リサイズ
         joblib.dump(pred_val, MODELS_DIR / f'pred-val.fold{args.cv_index}.h5')
         evaluation.log_evaluation(y_val, pred_val)
 
@@ -152,7 +151,6 @@ def predict(ensemble):
             gen.add(tk.image.Resize((256, 256)), input_index=0)
             model = tk.dl.models.Model(network, gen, batch_size=32)
             pred = model.predict(X, verbose=1)
-            pred = [tk.ndimage.resize(p, 101, 101) for p in tk.tqdm(pred)]  # リサイズ
             pred = utils.apply_crf_all(X[0], pred)
             pred_list.append(pred)
             if not ensemble:
