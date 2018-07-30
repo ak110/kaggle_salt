@@ -22,7 +22,7 @@ def _train():
     tk.better_exceptions()
     parser = argparse.ArgumentParser()
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
-    parser.add_argument('--batch-size', default=12, type=int)
+    parser.add_argument('--batch-size', default=16, type=int)
     parser.add_argument('--epochs', default=300, type=int)
     args = parser.parse_args()
     with tk.dl.session(use_horovod=True):
