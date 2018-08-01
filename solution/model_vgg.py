@@ -79,13 +79,15 @@ def _train_impl(args):
             x = builder.conv2dtr(32, 8, strides=8)(x)
         else:
             x = builder.conv2dtr(filters // 4, 2, strides=2)(x)
-        x = builder.conv2d(filters, 1, use_bn=False, use_act=False)(x)
-        d = builder.conv2d(filters, 1, use_bn=False, use_act=False)(builder.conv2d(filters)(d))
+        builder.conv_defaults['padding'] = 'reflect'
+        x = builder.conv2d(filters, 3, use_bn=False, use_act=False)(x)
+        d = builder.conv2d(filters, 3, use_bn=False, use_act=False)(d)
         x = keras.layers.add([x, d])
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.bn_act()(x)
+        builder.conv_defaults['padding'] = 'same'
 
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     x = keras.layers.multiply([x, gate])
