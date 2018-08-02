@@ -8,16 +8,14 @@ import sklearn.metrics
 import data
 import evaluation
 import model_bin
-import model_ir2
 import model_large
-import model_notr_bin
 import model_small
 import model_vgg
 import pytoolkit as tk
 
 MODELS_DIR = pathlib.Path('models')
 REPORTS_DIR = pathlib.Path('reports')
-MODELS = {m.__name__: m for m in [model_large, model_vgg, model_ir2, model_small, model_bin, model_notr_bin]}
+MODELS = {m.__name__: m for m in [model_large, model_vgg, model_small, model_bin]}
 
 
 def _main():
@@ -49,9 +47,6 @@ def _report(model_name, X, y):
 
     if m.OUTPUT_TYPE == 'bin':
         tk.ml.print_classification_metrics(y, pred, print_fn=logger.info)
-        logger.info('roc curve:')
-        for fpr, tpr, th in zip(*sklearn.metrics.roc_curve(y, pred)):
-            logger.info(f'  threshold={th:.3f}: fpr={fpr:.3f} tpr={tpr:.3f}')
     else:
         evaluation.log_evaluation(y, pred, print_fn=logger.info)
 
