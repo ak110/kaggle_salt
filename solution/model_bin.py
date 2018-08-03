@@ -44,22 +44,24 @@ def _train_impl(args):
     ]
     x = inputs[0]
     x = tk.dl.layers.preprocess()(mode='tf')(x)
-    d = inputs[1]
-    d = keras.layers.RepeatVector(256 * 256)(d)
-    d = keras.layers.Reshape((256, 256, 1))(d)
-    x = keras.layers.concatenate([x, x, d])
+    x = keras.layers.concatenate([x, x, x])
     base_model = keras.applications.NASNetLarge(include_top=False, input_tensor=x)
     x = base_model.outputs[0]
+    x = keras.layers.Dropout(0.5)(x)
     x = keras.layers.GlobalAveragePooling2D()(x)
+    x = keras.layers.concatenate([x, inputs[1]])
+    x = keras.layers.Dense(256, activation='relu',
+                           kernel_initializer='he_uniform',
+                           kernel_regularizer=keras.regularizers.l2(1e-4))(x)
     x = keras.layers.Dense(1, activation='sigmoid',
-                           kernel_initializer='zeros',
+                           kernel_initializer='he_uniform',
                            kernel_regularizer=keras.regularizers.l2(1e-4))(x)
     network = keras.models.Model(inputs, x)
 
     gen = tk.image.generator.Generator(multiple_input=True)
     gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
     gen.add(tk.image.RandomFlipLR(probability=0.5), input_index=0)
-    # gen.add(tk.image.RandomRotate(probability=0.25), input_index=0)
+    gen.add(tk.image.RandomRotate(probability=0.25), input_index=0)
     gen.add(tk.image.Resize((256, 256)), input_index=0)
 
     model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
