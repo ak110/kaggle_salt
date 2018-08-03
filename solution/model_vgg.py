@@ -66,10 +66,10 @@ def _train_impl(args):
     down_list.append(x)  # stage 5: 8
 
     x = keras.layers.GlobalAveragePooling2D()(x)
-    x = builder.dense(32)(x)
+    x = builder.dense(256)(x)
     x = builder.act()(x)
     x = keras.layers.concatenate([x, inputs[1], inputs[2]])
-    x = builder.dense(32)(x)
+    x = builder.dense(256)(x)
     x = builder.act()(x)
     gate = builder.dense(1, activation='sigmoid')(x)
     x = keras.layers.Reshape((1, 1, -1))(x)
