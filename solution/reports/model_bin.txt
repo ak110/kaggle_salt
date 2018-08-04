@@ -1,4 +1,4 @@
-[INFO ] Accuracy: 0.928 <report_model_bin:ml.py:532>
+[INFO ] Accuracy: 0.927 <report_model_bin:ml.py:532>
 [INFO ] F1-score: 0.940 <report_model_bin:ml.py:533>
-[INFO ] AUC:      0.973 <report_model_bin:ml.py:534>
-[INFO ] Logloss:  0.208 <report_model_bin:ml.py:535>
+[INFO ] AUC:      0.971 <report_model_bin:ml.py:534>
+[INFO ] Logloss:  0.219 <report_model_bin:ml.py:535>
