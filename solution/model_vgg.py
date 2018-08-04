@@ -89,6 +89,11 @@ def _train_impl(args):
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.bn_act()(x)
 
+    x = tk.dl.layers.resize()((101, 101), interpolation='bicubic')(x)
+    x = builder.res_block(64, dropout=0.25)(x)
+    x = builder.res_block(64, dropout=0.25)(x)
+    x = builder.res_block(64, dropout=0.25)(x)
+    x = builder.bn_act()(x)
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     x = keras.layers.multiply([x, gate])
     network = keras.models.Model(inputs, x)
@@ -99,7 +104,8 @@ def _train_impl(args):
     gen.add(tk.image.RandomPadding(probability=1, with_output=True), input_index=0)
     gen.add(tk.image.RandomRotate(probability=0.25, with_output=True), input_index=0)
     gen.add(tk.image.RandomCrop(probability=1, with_output=True), input_index=0)
-    gen.add(tk.image.Resize((256, 256), with_output=True), input_index=0)
+    gen.add(tk.image.Resize((256, 256)), input_index=0)
+    gen.add(tk.generator.ProcessOutput(lambda y: tk.ndimage.resize(y, 101, 101)))
 
     model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
     lr_multipliers = {l: 0.1 for l in base_network.layers}
@@ -115,7 +121,6 @@ def _train_impl(args):
 
     if tk.dl.hvd.is_master():
         pred_val = model.predict(X_val)
-        pred_val = np.array([tk.ndimage.resize(p, 101, 101) for p in pred_val])  # リサイズ
         joblib.dump(pred_val, MODELS_DIR / f'pred-val.fold{args.cv_index}.h5')
         evaluation.log_evaluation(y_val, pred_val)
 
@@ -146,7 +151,6 @@ def predict(ensemble):
             gen.add(tk.image.Resize((256, 256)), input_index=0)
             model = tk.dl.models.Model(network, gen, batch_size=32)
             pred = model.predict(X, verbose=1)
-            pred = [tk.ndimage.resize(p, 101, 101) for p in tk.tqdm(pred)]  # リサイズ
             pred = utils.apply_crf_all(X[0], pred)
             pred_list.append(pred)
             if not ensemble:
