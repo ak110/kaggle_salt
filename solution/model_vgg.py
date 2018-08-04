@@ -60,13 +60,15 @@ def _train_impl(args):
     down_list.append(base_network.get_layer(name='block3_pool').input)  # stage 2: 64
     down_list.append(base_network.get_layer(name='block4_pool').input)  # stage 3: 32
     down_list.append(base_network.get_layer(name='block5_pool').input)  # stage 4: 16
-    x = builder.conv2d(512)(x)
-    x = builder.conv2d(512)(x)
-    x = builder.conv2d(512)(x)
+    x = builder.conv2d(512, use_act=False)(x)
+    x = builder.res_block(512, dropout=0.25)(x)
+    x = builder.res_block(512, dropout=0.25)(x)
+    x = builder.res_block(512, dropout=0.25)(x)
+    x = builder.bn_act()(x)
     down_list.append(x)  # stage 5: 8
 
     x = keras.layers.GlobalAveragePooling2D()(x)
-    x = builder.dense(256)(x)
+    x = builder.dense(64)(x)
     x = builder.act()(x)
     x = keras.layers.concatenate([x, inputs[1], inputs[2]])
     x = builder.dense(256)(x)
@@ -79,15 +81,13 @@ def _train_impl(args):
             x = builder.conv2dtr(32, 8, strides=8)(x)
         else:
             x = builder.conv2dtr(filters // 4, 2, strides=2)(x)
-        builder.conv_defaults['padding'] = 'reflect'
-        x = builder.conv2d(filters, 3, use_bn=False, use_act=False)(x)
-        d = builder.conv2d(filters, 3, use_bn=False, use_act=False)(d)
+        x = builder.conv2d(filters, 1, use_bn=False, use_act=False)(x)
+        d = builder.conv2d(filters, 1, use_bn=False, use_act=False)(builder.conv2d(filters)(d))
         x = keras.layers.add([x, d])
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.bn_act()(x)
-        builder.conv_defaults['padding'] = 'same'
 
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     x = keras.layers.multiply([x, gate])
