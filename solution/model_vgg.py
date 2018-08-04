@@ -60,10 +60,10 @@ def _train_impl(args):
     down_list.append(base_network.get_layer(name='block3_pool').input)  # stage 2: 64
     down_list.append(base_network.get_layer(name='block4_pool').input)  # stage 3: 32
     down_list.append(base_network.get_layer(name='block5_pool').input)  # stage 4: 16
-    x = builder.conv2d(512, use_act=False)(x)
-    x = builder.res_block(512, dropout=0.25)(x)
-    x = builder.res_block(512, dropout=0.25)(x)
-    x = builder.res_block(512, dropout=0.25)(x)
+    x = builder.conv2d(256, use_act=False)(x)
+    x = builder.res_block(256, dropout=0.25)(x)
+    x = builder.res_block(256, dropout=0.25)(x)
+    x = builder.res_block(256, dropout=0.25)(x)
     x = builder.bn_act()(x)
     down_list.append(x)  # stage 5: 8
 
@@ -89,7 +89,8 @@ def _train_impl(args):
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.bn_act()(x)
 
-    x = tk.dl.layers.resize()((101, 101), interpolation='bicubic')(x)
+    x = builder.conv2d(64)(x)
+    x = tk.dl.layers.resize2d()((101, 101))(x)
     x = builder.res_block(64, dropout=0.25)(x)
     x = builder.res_block(64, dropout=0.25)(x)
     x = builder.res_block(64, dropout=0.25)(x)
