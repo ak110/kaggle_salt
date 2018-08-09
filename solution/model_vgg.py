@@ -17,6 +17,9 @@ SPLIT_SEED = 678
 CV_COUNT = 5
 OUTPUT_TYPE = 'mask'
 
+X_mean = 120.34604
+X_std = 41.069717
+
 
 def _train():
     tk.better_exceptions()
@@ -50,8 +53,8 @@ def _train_impl(args):
         builder.input_tensor((1,)),  # model_bin
     ]
     x = inputs[0]
+    x = keras.layers.Lambda(lambda x: x - X_mean)(x)  # caffe風preprocess
     x = keras.layers.concatenate([x, x, x])
-    x = builder.preprocess(mode='caffe')(x)
     base_network = keras.applications.VGG16(include_top=False, input_tensor=x)
     x = base_network.outputs[0]
     down_list = []
@@ -89,8 +92,13 @@ def _train_impl(args):
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.bn_act()(x)
 
-    x = builder.conv2d(64)(x)
+    t = tk.dl.layers.resize2d()((101, 101))(inputs[0])
+    t = keras.layers.Lambda(lambda x: (x - X_mean) / X_std)(t)
+
     x = tk.dl.layers.resize2d()((101, 101))(x)
+    x = keras.layers.concatenate([x, t])
+
+    x = builder.conv2d(64, use_act=False)(x)
     x = builder.res_block(64, dropout=0.25)(x)
     x = builder.res_block(64, dropout=0.25)(x)
     x = builder.res_block(64, dropout=0.25)(x)
