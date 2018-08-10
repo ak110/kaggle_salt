@@ -8,4 +8,4 @@
 
 ## TODO
 
-- model_nの名前の整理 (リネームを簡単にしたい。pyにmpirunも入れる？ tkで補助実装。)
+- model_xxxのリネームを簡単にしたい。pyにmpirunも入れる？ tkで補助実装。

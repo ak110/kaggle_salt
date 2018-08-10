@@ -84,20 +84,13 @@ def _train_impl(args):
             x = builder.conv2dtr(32, 8, strides=8)(x)
         else:
             x = builder.conv2dtr(filters // 4, 2, strides=2)(x)
-        x = builder.conv2d(filters, 1, use_bn=False, use_act=False)(x)
-        d = builder.conv2d(filters, 1, use_bn=False, use_act=False)(builder.conv2d(filters)(d))
+        x = builder.conv2d(filters, 3, use_act=False)(x)
+        d = builder.conv2d(filters, 3, use_act=False)(d)
         x = keras.layers.add([x, d])
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.res_block(filters, dropout=0.25)(x)
-        x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.bn_act()(x)
-
-    t = tk.dl.layers.resize2d()((101, 101))(inputs[0])
-    t = keras.layers.Lambda(lambda x: (x - X_mean) / X_std)(t)
-
     x = tk.dl.layers.resize2d()((101, 101))(x)
-    x = keras.layers.concatenate([x, t])
-
     x = builder.conv2d(64, use_act=False)(x)
     x = builder.res_block(64, dropout=0.25)(x)
     x = builder.res_block(64, dropout=0.25)(x)
