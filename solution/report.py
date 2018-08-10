@@ -3,11 +3,11 @@ import argparse
 import pathlib
 
 import numpy as np
-import sklearn.metrics
 
 import data
 import evaluation
 import model_bin
+import model_dn
 import model_large
 import model_small
 import model_vgg
@@ -15,7 +15,7 @@ import pytoolkit as tk
 
 MODELS_DIR = pathlib.Path('models')
 REPORTS_DIR = pathlib.Path('reports')
-MODELS = {m.__name__: m for m in [model_large, model_vgg, model_small, model_bin]}
+MODELS = {m.__name__: m for m in [model_large, model_vgg, model_small, model_bin, model_dn]}
 
 
 def _main():

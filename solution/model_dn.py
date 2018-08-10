@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""256x256 + VGG16。"""
+"""256x256 + Darknet53。"""
 import argparse
 import pathlib
 
@@ -12,13 +12,10 @@ import evaluation
 import pytoolkit as tk
 import utils
 
-MODELS_DIR = pathlib.Path('models/model_vgg')
-SPLIT_SEED = 678
+MODELS_DIR = pathlib.Path('models/model_dn')
+SPLIT_SEED = 789
 CV_COUNT = 5
 OUTPUT_TYPE = 'mask'
-
-X_mean = 120.34604
-X_std = 41.069717
 
 
 def _train():
@@ -53,22 +50,17 @@ def _train_impl(args):
         builder.input_tensor((1,)),  # model_bin
     ]
     x = inputs[0]
-    x = keras.layers.Lambda(lambda x: x - X_mean)(x)  # caffe風preprocess
+    x = x_in = tk.dl.layers.preprocess()(mode='div255')(x)
     x = keras.layers.concatenate([x, x, x])
-    base_network = keras.applications.VGG16(include_top=False, input_tensor=x)
+    base_network = tk.applications.darknet53.darknet53(include_top=False, input_tensor=x)
     x = base_network.outputs[0]
     down_list = []
-    down_list.append(base_network.get_layer(name='block1_pool').input)  # stage 0: 256
-    down_list.append(base_network.get_layer(name='block2_pool').input)  # stage 1: 128
-    down_list.append(base_network.get_layer(name='block3_pool').input)  # stage 2: 64
-    down_list.append(base_network.get_layer(name='block4_pool').input)  # stage 3: 32
-    down_list.append(base_network.get_layer(name='block5_pool').input)  # stage 4: 16
-    x = builder.conv2d(256, use_act=False)(x)
-    x = builder.res_block(256, dropout=0.25)(x)
-    x = builder.res_block(256, dropout=0.25)(x)
-    x = builder.res_block(256, dropout=0.25)(x)
-    x = builder.bn_act()(x)
-    down_list.append(x)  # stage 5: 8
+    down_list.append(x_in)  # stage 0: 256
+    down_list.append(base_network.get_layer(name='add_1').output)  # stage 1: 128
+    down_list.append(base_network.get_layer(name='add_3').output)  # stage 2: 64
+    down_list.append(base_network.get_layer(name='add_11').output)  # stage 3: 32
+    down_list.append(base_network.get_layer(name='add_19').output)  # stage 4: 16
+    down_list.append(base_network.get_layer(name='add_23').output)  # stage 5: 8
 
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(64)(x)
