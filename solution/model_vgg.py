@@ -1,5 +1,4 @@
 #!/usr/bin/env ./_run.sh
-"""256x256 + VGG16。"""
 import argparse
 import pathlib
 
