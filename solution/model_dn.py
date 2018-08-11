@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env ./_run.sh
 """256x256 + Darknet53。"""
 import argparse
 import pathlib
@@ -13,6 +13,7 @@ import pytoolkit as tk
 import utils
 
 MODELS_DIR = pathlib.Path('models/model_dn')
+REPORTS_DIR = pathlib.Path('reports')
 SPLIT_SEED = 789
 CV_COUNT = 5
 OUTPUT_TYPE = 'mask'
@@ -24,10 +25,19 @@ def _train():
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
     parser.add_argument('--batch-size', default=16, type=int)
     parser.add_argument('--epochs', default=300, type=int)
+    parser.add_argument('--ensemble', action='store_true', help='予測時にアンサンブルを行うのか否か。')
     args = parser.parse_args()
-    with tk.dl.session(use_horovod=True):
-        tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
-        _train_impl(args)
+    if args.mode == 'train':
+        with tk.dl.session(use_horovod=True):
+            tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
+            _train_impl(args)
+    elif args.mode == 'validate':
+        tk.log.init(REPORTS_DIR / f'{MODELS_DIR.name}.txt')
+        _report_impl()
+    else:
+        assert args.mode == 'predict'
+        tk.log.init(MODELS_DIR / 'predict.log')
+        _predict_impl(args)
 
 
 @tk.log.trace()
@@ -150,6 +160,28 @@ def predict(ensemble):
             if not ensemble:
                 break
     return pred_list
+
+
+@tk.log.trace()
+def _report_impl():
+    """検証＆閾値決定。"""
+    logger = tk.log.get(__name__)
+    X, _, y = data.load_train_data()
+    y = data.load_mask(y)
+    pred = load_oofp(X, y)
+    threshold = evaluation.log_evaluation(y, pred, print_fn=logger.info)
+    (MODELS_DIR / 'threshold.txt').write_text(str(threshold))
+
+
+@tk.log.trace()
+def _predict_impl(args):
+    """予測。"""
+    logger = tk.log.get(__name__)
+    threshold = float((MODELS_DIR / 'threshold.txt').read_text())
+    logger.info(f'threshold = {threshold:.3f}')
+    pred_list = predict(ensemble=args.ensemble)
+    pred = np.sum([p > threshold for p in pred_list], axis=0) > len(pred_list) / 2  # hard voting
+    data.save_submission(MODELS_DIR / 'submission.csv', pred)
 
 
 if __name__ == '__main__':

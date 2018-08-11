@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env ./_run.sh
 """有無のみを2クラス分類するやつ。"""
 import argparse
 import pathlib
@@ -10,6 +10,7 @@ import data
 import pytoolkit as tk
 
 MODELS_DIR = pathlib.Path('models/model_bin')
+REPORTS_DIR = pathlib.Path('reports')
 SPLIT_SEED = 345
 CV_COUNT = 5
 OUTPUT_TYPE = 'bin'
@@ -22,9 +23,17 @@ def _train():
     parser.add_argument('--batch-size', default=16, type=int)
     parser.add_argument('--epochs', default=100, type=int)
     args = parser.parse_args()
-    with tk.dl.session(use_horovod=True):
-        tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
-        _train_impl(args)
+    parser.add_argument('--ensemble', action='store_true', help='予測時にアンサンブルを行うのか否か。')
+    args = parser.parse_args()
+    if args.mode == 'train':
+        with tk.dl.session(use_horovod=True):
+            tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
+            _train_impl(args)
+    elif args.mode == 'validate':
+        tk.log.init(REPORTS_DIR / f'{MODELS_DIR.name}.txt')
+        _report_impl()
+    else:
+        assert args.mode == 'predict'  # このモデルは単体では予測できないので処理無し。
 
 
 @tk.log.trace()
@@ -107,6 +116,18 @@ def predict(ensemble):
         if not ensemble:
             break
     return pred_list
+
+
+@tk.log.trace()
+def _report_impl():
+    """検証＆閾値決定。"""
+    logger = tk.log.get(__name__)
+    X, _, y = data.load_train_data()
+    y = data.load_mask(y)
+    y = np.max(y > 0.5, axis=(1, 2, 3)).astype(np.uint8)  # 0 or 1
+    y = np.expand_dims(y, axis=-1)
+    pred = load_oofp(X, y)
+    tk.ml.print_classification_metrics(y, pred, print_fn=logger.info)
 
 
 if __name__ == '__main__':

@@ -23,6 +23,8 @@ def log_evaluation(y_val, pred_val, print_fn=None):
     for th, score in zip(threshold_list, score_list):
         print_fn(f'  threshold={th:.3f}: score={score:.3f}')
 
+    return threshold_list[best_index]
+
 
 def compute_score(y_true, y_pred):
     """適当スコア算出。"""
