@@ -109,7 +109,8 @@ def _train_impl(args):
     gen.add(tk.image.RandomPadding(probability=1, with_output=True), input_index=0)
     gen.add(tk.image.RandomRotate(probability=0.25, with_output=True), input_index=0)
     gen.add(tk.image.RandomCrop(probability=1, with_output=True), input_index=0)
-    gen.add(tk.image.Resize((101, 101), with_output=True), input_index=0)
+    gen.add(tk.image.Resize((203, 203)), input_index=0)
+    gen.add(tk.generator.ProcessOutput(lambda y: tk.ndimage.resize(y, 101, 101)))
 
     model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
     lr_multipliers = {l: 0.1 for l in base_network.layers}
@@ -152,7 +153,7 @@ def predict(ensemble):
             network = tk.dl.models.load_model(MODELS_DIR / f'model.fold{cv_index}.h5', compile=False)
             gen = tk.image.generator.Generator(multiple_input=True)
             gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
-            # gen.add(tk.image.Resize((256, 256)), input_index=0)
+            gen.add(tk.image.Resize((203, 203)), input_index=0)
             model = tk.dl.models.Model(network, gen, batch_size=32)
             pred = model.predict(X, verbose=1)
             pred = utils.apply_crf_all(X[0], pred)
