@@ -21,6 +21,7 @@ OUTPUT_TYPE = 'mask'
 def _train():
     tk.better_exceptions()
     parser = argparse.ArgumentParser()
+    parser.add_argument('mode', choices=('train', 'validate', 'predict'))
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
     parser.add_argument('--batch-size', default=16, type=int)
     parser.add_argument('--epochs', default=300, type=int)
