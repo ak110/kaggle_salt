@@ -112,7 +112,7 @@ def _train_impl(args):
     gen.add(tk.image.RandomPadding(probability=1, with_output=True), input_index=0)
     gen.add(tk.image.RandomRotate(probability=0.25, with_output=True), input_index=0)
     gen.add(tk.image.RandomCrop(probability=1, with_output=True), input_index=0)
-    gen.add(tk.image.Resize((101, 101)), with_output=True, input_index=0)
+    gen.add(tk.image.Resize((101, 101), with_output=True), input_index=0)
 
     model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
     lr_multipliers = {l: 0.1 for l in base_network.layers}
