@@ -23,7 +23,7 @@ def _train():
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', choices=('train', 'validate', 'predict'))
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
-    parser.add_argument('--batch-size', default=16, type=int)
+    parser.add_argument('--batch-size', default=8, type=int)
     parser.add_argument('--epochs', default=300, type=int)
     parser.add_argument('--ensemble', action='store_true', help='予測時にアンサンブルを行うのか否か。')
     args = parser.parse_args()
@@ -55,7 +55,7 @@ def _train_impl(args):
     builder = tk.dl.networks.Builder()
 
     inputs = [
-        builder.input_tensor((101, 101, 1)),
+        builder.input_tensor((203, 203, 1)),
         builder.input_tensor((1,)),  # depths
         builder.input_tensor((1,)),  # model_bin
     ]
@@ -65,12 +65,11 @@ def _train_impl(args):
     base_network = keras.applications.NASNetLarge(include_top=False, input_tensor=x)
     x = base_network.outputs[0]
     down_list = []
-    down_list.append(x_in)  # stage 0: 101
-    down_list.append(base_network.get_layer(name='activation_1').output)  # stage 1: 50
-    down_list.append(base_network.get_layer(name='activation_12').output)  # stage 2: 25
-    down_list.append(base_network.get_layer(name='activation_95').output)  # stage 3: 13
-    down_list.append(base_network.get_layer(name='activation_178').output)  # stage 4: 7
-    down_list.append(base_network.get_layer(name='activation_260').output)  # stage 5: 4
+    down_list.append(base_network.get_layer(name='activation_1').output)  # stage 0: 101
+    down_list.append(base_network.get_layer(name='activation_12').output)  # stage 1: 51
+    down_list.append(base_network.get_layer(name='activation_95').output)  # stage 2: 26
+    down_list.append(base_network.get_layer(name='activation_178').output)  # stage 3: 13
+    down_list.append(base_network.get_layer(name='activation_260').output)  # stage 4: 7
 
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(64)(x)
@@ -81,14 +80,12 @@ def _train_impl(args):
     gate = builder.dense(1, activation='sigmoid')(x)
     x = keras.layers.Reshape((1, 1, -1))(x)
 
-    for stage, (d, filters) in list(enumerate(zip(down_list, [16, 32, 64, 128, 256, 512])))[::-1]:
+    for stage, (d, filters) in list(enumerate(zip(down_list, [32, 64, 128, 256, 512])))[::-1]:
         if stage == len(down_list) - 1:
-            x = builder.conv2dtr(32, 4, strides=4)(x)
-        elif stage == 0:
-            x = builder.conv2dtr(filters // 4, 3, strides=2, padding='valid')(x)
+            x = builder.conv2dtr(32, 7, strides=7)(x)
         else:
             x = builder.conv2dtr(filters // 4, 2, strides=2)(x)
-            if stage in (2, 3, 4):
+            if stage in (0, 1, 3):
                 x = keras.layers.Cropping2D(((0, 1), (0, 1)))(x)
         x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
