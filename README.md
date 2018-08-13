@@ -8,5 +8,6 @@
 
 ## TODO
 
-- model_xxxのリネームを簡単にしたい。pyにmpirunも入れる？ tkで補助実装。
-- report.pyとかpredict.pyもなんとかしたい。
+- TTA (LR?)
+- cross-pseudo-labeling
+- ensemble

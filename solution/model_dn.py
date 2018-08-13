@@ -15,7 +15,6 @@ MODELS_DIR = pathlib.Path('models/model_dn')
 REPORTS_DIR = pathlib.Path('reports')
 SPLIT_SEED = 789
 CV_COUNT = 5
-OUTPUT_TYPE = 'mask'
 
 
 def _train():

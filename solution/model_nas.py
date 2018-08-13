@@ -15,7 +15,6 @@ MODELS_DIR = pathlib.Path('models/model_nas')
 REPORTS_DIR = pathlib.Path('reports')
 SPLIT_SEED = 123
 CV_COUNT = 5
-OUTPUT_TYPE = 'mask'
 
 
 def _train():
@@ -60,7 +59,7 @@ def _train_impl(args):
         builder.input_tensor((1,)),  # model_bin
     ]
     x = inputs[0]
-    x = x_in = tk.dl.layers.preprocess()(mode='tf')(x)
+    x = tk.dl.layers.preprocess()(mode='tf')(x)
     x = keras.layers.concatenate([x, x, x])
     base_network = keras.applications.NASNetLarge(include_top=False, input_tensor=x)
     x = base_network.outputs[0]

@@ -13,7 +13,6 @@ MODELS_DIR = pathlib.Path('models/model_bin')
 REPORTS_DIR = pathlib.Path('reports')
 SPLIT_SEED = 345
 CV_COUNT = 5
-OUTPUT_TYPE = 'bin'
 
 
 def _train():

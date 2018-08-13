@@ -15,7 +15,6 @@ MODELS_DIR = pathlib.Path('models/model_vgg')
 REPORTS_DIR = pathlib.Path('reports')
 SPLIT_SEED = 678
 CV_COUNT = 5
-OUTPUT_TYPE = 'mask'
 
 X_mean = 120.34604
 X_std = 41.069717
