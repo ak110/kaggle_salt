@@ -59,7 +59,7 @@ def _train_impl(args):
         builder.input_tensor((1,)),  # model_bin
     ]
     x = inputs[0]
-    x = tk.dl.layers.preprocess()(mode='tf')(x)
+    x = x_in = tk.dl.layers.preprocess()(mode='tf')(x)
     x = keras.layers.concatenate([x, x, x])
     base_network = keras.applications.NASNetLarge(include_top=False, input_tensor=x)
     x = base_network.outputs[0]
@@ -81,22 +81,28 @@ def _train_impl(args):
 
     for stage, (d, filters) in list(enumerate(zip(down_list, [32, 64, 128, 256, 512])))[::-1]:
         if stage == len(down_list) - 1:
-            x = builder.conv2dtr(32, 7, strides=7)(x)
+            x = builder.conv2dtr(filters // 4, 7, strides=7)(x)
         else:
-            x = builder.conv2dtr(filters // 4, 2, strides=2)(x)
+            x = builder.conv2dtr(max(filters // 4, 32), 2, strides=2)(x)
             if stage in (0, 1, 3):
-                x = keras.layers.Cropping2D(((0, 1), (0, 1)))(x)
+                x = builder.dwconv2d(2, padding='valid')(x)
         x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
         x = keras.layers.add([x, d])
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.bn_act()(x)
-    x = builder.conv2d(64, use_act=False)(x)
-    x = builder.res_block(64, dropout=0.25)(x)
-    x = builder.res_block(64, dropout=0.25)(x)
-    x = builder.res_block(64, dropout=0.25)(x)
-    x = builder.res_block(64, dropout=0.25)(x)
+
+    p = builder.conv2d(128)(x_in)
+    p = builder.conv2d(128)(p)
+    p = builder.conv2d(128, 3, strides=2, padding='valid')(p)
+    p = builder.conv2d(128, use_act=False)(p)
+    x = builder.conv2d(128, use_act=False)(x)
+    x = keras.layers.add([x, p])
+    x = builder.res_block(128, dropout=0.25)(x)
+    x = builder.res_block(128, dropout=0.25)(x)
+    x = builder.res_block(128, dropout=0.25)(x)
+    x = builder.res_block(128, dropout=0.25)(x)
     x = builder.bn_act()(x)
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     x = keras.layers.multiply([x, gate])
@@ -112,7 +118,7 @@ def _train_impl(args):
     gen.add(tk.generator.ProcessOutput(lambda y: tk.ndimage.resize(y, 101, 101)))
 
     model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
-    lr_multipliers = {l: 0.1 for l in base_network.layers}
+    lr_multipliers = {l: 0.01 for l in base_network.layers}
     model.compile(sgd_lr=0.5 / 256, loss='binary_crossentropy', metrics=['acc'], lr_multipliers=lr_multipliers)
     model.summary()
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
