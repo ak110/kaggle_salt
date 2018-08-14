@@ -62,29 +62,41 @@ def _train_impl(args):
     x = x_in = tk.dl.layers.preprocess()(mode='tf')(x)
     x = keras.layers.concatenate([x, x, x])
     base_network = keras.applications.NASNetLarge(include_top=False, input_tensor=x)
-    x = base_network.outputs[0]
+    x_in = builder.conv2d(128)(x_in)
+    x_in = builder.conv2d(128)(x_in)
+    x_in = builder.conv2d(128, use_act=False)(x_in)
     down_list = []
-    down_list.append(base_network.get_layer(name='activation_1').output)  # stage 0: 50
-    down_list.append(base_network.get_layer(name='activation_12').output)  # stage 1: 25
-    down_list.append(base_network.get_layer(name='activation_95').output)  # stage 2: 13
-    down_list.append(base_network.get_layer(name='activation_178').output)  # stage 3: 7
-    # down_list.append(base_network.get_layer(name='activation_260').output)  # stage 4: 4
-
+    down_list.append(x_in)  # stage 0: 101
+    down_list.append(base_network.get_layer(name='activation_1').output)  # stage 1: 50
+    down_list.append(base_network.get_layer(name='activation_12').output)  # stage 2: 25
+    down_list.append(base_network.get_layer(name='activation_95').output)  # stage 3: 13
+    down_list.append(base_network.get_layer(name='activation_178').output)  # stage 4: 7
+    # down_list.append(base_network.get_layer(name='activation_260').output)  # stage 5: 4
+    # x = base_network.outputs[0]
+    x = down_list[-1]
+    x = builder.conv2d(256, 1, use_act=False)(x)
+    x = builder.res_block(256, dropout=0.25)(x)
+    x = builder.res_block(256, dropout=0.25)(x)
+    x = builder.res_block(256, dropout=0.25)(x)
+    x = builder.res_block(256, dropout=0.25)(x)
+    x = builder.bn_act()(x)
     x = keras.layers.GlobalAveragePooling2D()(x)
-    x = builder.dense(64)(x)
-    x = builder.act()(x)
     x = keras.layers.concatenate([x, inputs[1], inputs[2]])
-    x = builder.dense(64)(x)
+    x = builder.dense(256)(x)
+    x = builder.act()(x)
+    x = builder.dense(256)(x)
     x = builder.act()(x)
     gate = builder.dense(1, activation='sigmoid')(x)
     x = keras.layers.Reshape((1, 1, -1))(x)
 
-    for stage, (d, filters) in list(enumerate(zip(down_list, [64, 128, 256, 512])))[::-1]:
+    for stage, (d, filters) in list(enumerate(zip(down_list, [64, 128, 256, 512, 512])))[::-1]:
         if stage == len(down_list) - 1:
             x = builder.conv2dtr(filters // 4, 7, strides=7)(x)
+        elif stage == 0:
+            x = builder.conv2dtr(32, 3, strides=2, padding='valid')(x)
         else:
             x = builder.conv2dtr(max(filters // 4, 32), 2, strides=2)(x)
-            if stage in (1, 2, 3):
+            if stage in (2, 3):
                 x = builder.dwconv2d(2, padding='valid')(x)
         x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
@@ -93,15 +105,11 @@ def _train_impl(args):
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.bn_act()(x)
 
-    p = builder.conv2d(128)(x_in)
-    p = builder.conv2d(128)(p)
-    p = builder.conv2d(128, use_act=False)(p)
-    x = builder.conv2d(128, use_act=False)(x)
-    x = keras.layers.add([x, p])
-    x = builder.res_block(128, dropout=0.25)(x)
-    x = builder.res_block(128, dropout=0.25)(x)
-    x = builder.res_block(128, dropout=0.25)(x)
-    x = builder.res_block(128, dropout=0.25)(x)
+    x = builder.conv2d(64, use_act=False)(x)
+    x = builder.res_block(64, dropout=0.25)(x)
+    x = builder.res_block(64, dropout=0.25)(x)
+    x = builder.res_block(64, dropout=0.25)(x)
+    x = builder.res_block(64, dropout=0.25)(x)
     x = builder.bn_act()(x)
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     x = keras.layers.multiply([x, gate])
