@@ -8,6 +8,10 @@
 
 ## TODO
 
+- pip install pydensecrf
+
+## TODO
+
 - TTA (LR?)
 - cross-pseudo-labeling
 - ensemble

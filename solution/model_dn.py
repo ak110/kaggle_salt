@@ -15,18 +15,21 @@ MODELS_DIR = pathlib.Path('models/model_dn')
 REPORTS_DIR = pathlib.Path('reports')
 SPLIT_SEED = 789
 CV_COUNT = 5
+INPUT_SIZE = (256, 256)
 
 
 def _train():
     tk.better_exceptions()
     parser = argparse.ArgumentParser()
-    parser.add_argument('mode', choices=('train', 'validate', 'predict'))
+    parser.add_argument('mode', choices=('check', 'train', 'validate', 'predict'))
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
     parser.add_argument('--batch-size', default=16, type=int)
     parser.add_argument('--epochs', default=300, type=int)
     parser.add_argument('--ensemble', action='store_true', help='予測時にアンサンブルを行うのか否か。')
     args = parser.parse_args()
-    if args.mode == 'train':
+    if args.mode == 'check':
+        _create_network()[0].summary()
+    elif args.mode == 'train':
         with tk.dl.session(use_horovod=True):
             tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
             _train_impl(args)
@@ -50,19 +53,49 @@ def _train_impl(args):
     (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti], mf[ti]], y[ti]), ([X[vi], d[vi], mf[vi]], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
 
+    network, lr_multipliers = _create_network()
+
+    gen = tk.image.generator.Generator(multiple_input=True)
+    gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
+    gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True), input_index=0)
+    gen.add(tk.image.RandomPadding(probability=1, with_output=True), input_index=0)
+    gen.add(tk.image.RandomRotate(probability=0.25, with_output=True), input_index=0)
+    gen.add(tk.image.RandomCrop(probability=1, with_output=True), input_index=0)
+    gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
+    gen.add(tk.generator.ProcessOutput(lambda y: tk.ndimage.resize(y, 101, 101)))
+
+    model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
+    model.compile(sgd_lr=0.5 / 256, loss='binary_crossentropy', metrics=['acc'], lr_multipliers=lr_multipliers)
+    model.summary()
+    model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
+    model.fit(
+        X_train, y_train, validation_data=(X_val, y_val),
+        epochs=args.epochs,
+        tsv_log_path=MODELS_DIR / f'history.fold{args.cv_index}.tsv',
+        cosine_annealing=True, mixup=True)
+    model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5')
+
+    if tk.dl.hvd.is_master():
+        pred_val = model.predict(X_val)
+        joblib.dump(pred_val, MODELS_DIR / f'pred-val.fold{args.cv_index}.pkl')
+        evaluation.log_evaluation(y_val, pred_val)
+
+
+def _create_network():
+    """ネットワークを作って返す。"""
     import keras
     builder = tk.dl.networks.Builder()
 
     inputs = [
-        builder.input_tensor((256, 256, 1)),
+        builder.input_tensor(INPUT_SIZE + (1,)),
         builder.input_tensor((1,)),  # depths
         builder.input_tensor((1,)),  # model_bin
     ]
     x = inputs[0]
-    x = x_in = tk.dl.layers.preprocess()(mode='div255')(x)
+    x = x_in = builder.preprocess(mode='div255')(x)
     x = keras.layers.concatenate([x, x, x])
     base_network = tk.applications.darknet53.darknet53(include_top=False, input_tensor=x)
-    x = base_network.outputs[0]
+    lr_multipliers = {l: 0.1 for l in base_network.layers}
     down_list = []
     down_list.append(x_in)  # stage 0: 256
     down_list.append(base_network.get_layer(name='add_1').output)  # stage 1: 128
@@ -70,7 +103,7 @@ def _train_impl(args):
     down_list.append(base_network.get_layer(name='add_11').output)  # stage 3: 32
     down_list.append(base_network.get_layer(name='add_19').output)  # stage 4: 16
     down_list.append(base_network.get_layer(name='add_23').output)  # stage 5: 8
-
+    x = base_network.outputs[0]
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(64)(x)
     x = builder.act()(x)
@@ -100,32 +133,7 @@ def _train_impl(args):
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     x = keras.layers.multiply([x, gate])
     network = keras.models.Model(inputs, x)
-
-    gen = tk.image.generator.Generator(multiple_input=True)
-    gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
-    gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True), input_index=0)
-    gen.add(tk.image.RandomPadding(probability=1, with_output=True), input_index=0)
-    gen.add(tk.image.RandomRotate(probability=0.25, with_output=True), input_index=0)
-    gen.add(tk.image.RandomCrop(probability=1, with_output=True), input_index=0)
-    gen.add(tk.image.Resize((256, 256)), input_index=0)
-    gen.add(tk.generator.ProcessOutput(lambda y: tk.ndimage.resize(y, 101, 101)))
-
-    model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
-    lr_multipliers = {l: 0.1 for l in base_network.layers}
-    model.compile(sgd_lr=0.5 / 256, loss='binary_crossentropy', metrics=['acc'], lr_multipliers=lr_multipliers)
-    model.summary()
-    model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
-    model.fit(
-        X_train, y_train, validation_data=(X_val, y_val),
-        epochs=args.epochs,
-        tsv_log_path=MODELS_DIR / f'history.fold{args.cv_index}.tsv',
-        cosine_annealing=True, mixup=True)
-    model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5')
-
-    if tk.dl.hvd.is_master():
-        pred_val = model.predict(X_val)
-        joblib.dump(pred_val, MODELS_DIR / f'pred-val.fold{args.cv_index}.pkl')
-        evaluation.log_evaluation(y_val, pred_val)
+    return network, lr_multipliers
 
 
 @tk.log.trace()
@@ -151,7 +159,7 @@ def predict(ensemble):
             network = tk.dl.models.load_model(MODELS_DIR / f'model.fold{cv_index}.h5', compile=False)
             gen = tk.image.generator.Generator(multiple_input=True)
             gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
-            gen.add(tk.image.Resize((256, 256)), input_index=0)
+            gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
             model = tk.dl.models.Model(network, gen, batch_size=32)
             pred = model.predict(X, verbose=1)
             pred = utils.apply_crf_all(X[0], pred)

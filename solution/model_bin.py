@@ -13,18 +13,21 @@ MODELS_DIR = pathlib.Path('models/model_bin')
 REPORTS_DIR = pathlib.Path('reports')
 SPLIT_SEED = 345
 CV_COUNT = 5
+INPUT_SIZE = (256, 256)
 
 
 def _train():
     tk.better_exceptions()
     parser = argparse.ArgumentParser()
+    parser.add_argument('mode', choices=('check', 'train', 'validate', 'predict'))
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
     parser.add_argument('--batch-size', default=16, type=int)
     parser.add_argument('--epochs', default=100, type=int)
-    args = parser.parse_args()
     parser.add_argument('--ensemble', action='store_true', help='予測時にアンサンブルを行うのか否か。')
     args = parser.parse_args()
-    if args.mode == 'train':
+    if args.mode == 'check':
+        _create_network().summary()
+    elif args.mode == 'train':
         with tk.dl.session(use_horovod=True):
             tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
             _train_impl(args)
@@ -45,9 +48,36 @@ def _train_impl(args):
     (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti]], y[ti]), ([X[vi], d[vi]], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
 
+    network = _create_network()
+
+    gen = tk.image.generator.Generator(multiple_input=True)
+    gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
+    gen.add(tk.image.RandomFlipLR(probability=0.5), input_index=0)
+    gen.add(tk.image.RandomRotate(probability=0.25), input_index=0)
+    gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
+
+    model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
+    model.compile(sgd_lr=0.1 / 128, loss='binary_crossentropy', metrics=['acc'])
+    model.summary()
+    model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
+    model.fit(
+        X_train, y_train, validation_data=(X_val, y_val),
+        epochs=args.epochs,
+        tsv_log_path=MODELS_DIR / f'history.fold{args.cv_index}.tsv',
+        cosine_annealing=True, mixup=True)
+    model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5')
+
+    if tk.dl.hvd.is_master():
+        pred_val = model.predict(X_val)
+        joblib.dump(pred_val, MODELS_DIR / f'pred-val.fold{args.cv_index}.pkl')
+        tk.ml.print_classification_metrics(y_val, pred_val)
+
+
+def _create_network():
+    """ネットワークを作って返す。"""
     import keras
     inputs = [
-        keras.layers.Input((256, 256, 1)),
+        keras.layers.Input(INPUT_SIZE + (1,)),
         keras.layers.Input((1,)),
     ]
     x = inputs[0]
@@ -65,28 +95,7 @@ def _train_impl(args):
                            kernel_initializer='he_uniform',
                            kernel_regularizer=keras.regularizers.l2(1e-4))(x)
     network = keras.models.Model(inputs, x)
-
-    gen = tk.image.generator.Generator(multiple_input=True)
-    gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
-    gen.add(tk.image.RandomFlipLR(probability=0.5), input_index=0)
-    gen.add(tk.image.RandomRotate(probability=0.25), input_index=0)
-    gen.add(tk.image.Resize((256, 256)), input_index=0)
-
-    model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
-    model.compile(sgd_lr=0.1 / 128, loss='binary_crossentropy', metrics=['acc'])
-    model.summary()
-    model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
-    model.fit(
-        X_train, y_train, validation_data=(X_val, y_val),
-        epochs=args.epochs,
-        tsv_log_path=MODELS_DIR / f'history.fold{args.cv_index}.tsv',
-        cosine_annealing=True, mixup=True)
-    model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5')
-
-    if tk.dl.hvd.is_master():
-        pred_val = model.predict(X_val)
-        joblib.dump(pred_val, MODELS_DIR / f'pred-val.fold{args.cv_index}.pkl')
-        tk.ml.print_classification_metrics(y_val, pred_val)
+    return network
 
 
 @tk.log.trace()

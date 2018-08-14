@@ -11,14 +11,11 @@ import evaluation
 import pytoolkit as tk
 import utils
 
-MODELS_DIR = pathlib.Path('models/model_vgg')
+MODELS_DIR = pathlib.Path('models/model_ir2')
 REPORTS_DIR = pathlib.Path('reports')
-SPLIT_SEED = 678
+SPLIT_SEED = 234
 CV_COUNT = 5
-INPUT_SIZE = (256, 256)
-
-X_mean = 120.34604
-X_std = 41.069717
+INPUT_SIZE = (267, 267)
 
 
 def _train():
@@ -95,24 +92,18 @@ def _create_network():
         builder.input_tensor((1,)),  # model_bin
     ]
     x = inputs[0]
-    x = keras.layers.Lambda(lambda x: x - X_mean)(x)  # caffe風preprocess
+    x = x_in = builder.preprocess(mode='tf')(x)
     x = keras.layers.concatenate([x, x, x])
-    base_network = keras.applications.VGG16(include_top=False, input_tensor=x)
+    base_network = keras.applications.InceptionResNetV2(include_top=False, input_tensor=x)
     lr_multipliers = {l: 0.1 for l in base_network.layers}
     down_list = []
-    down_list.append(base_network.get_layer(name='block1_pool').input)  # stage 0: 256
-    down_list.append(base_network.get_layer(name='block2_pool').input)  # stage 1: 128
-    down_list.append(base_network.get_layer(name='block3_pool').input)  # stage 2: 64
-    down_list.append(base_network.get_layer(name='block4_pool').input)  # stage 3: 32
-    down_list.append(base_network.get_layer(name='block5_pool').input)  # stage 4: 16
+    down_list.append(x_in)  # stage 0: 267
+    down_list.append(base_network.get_layer(name='activation_3').output)  # stage 1: 131
+    down_list.append(base_network.get_layer(name='activation_5').output)  # stage 2: 63
+    down_list.append(base_network.get_layer(name='block35_10_ac').output)  # stage 3: 31
+    down_list.append(base_network.get_layer(name='block17_20_ac').output)  # stage 4: 15
+    down_list.append(base_network.get_layer(name='conv_7b_ac').output)  # stage 5: 7
     x = base_network.outputs[0]
-    x = builder.conv2d(256, use_act=False)(x)
-    x = builder.res_block(256, dropout=0.25)(x)
-    x = builder.res_block(256, dropout=0.25)(x)
-    x = builder.res_block(256, dropout=0.25)(x)
-    x = builder.bn_act()(x)
-    down_list.append(x)  # stage 5: 8
-
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(64)(x)
     x = builder.act()(x)
@@ -124,9 +115,11 @@ def _create_network():
 
     for stage, (d, filters) in list(enumerate(zip(down_list, [16, 32, 64, 128, 256, 512])))[::-1]:
         if stage == len(down_list) - 1:
-            x = builder.conv2dtr(32, 8, strides=8)(x)
+            x = builder.conv2dtr(32, 7, strides=7)(x)
         else:
-            x = builder.conv2dtr(filters // 4, 2, strides=2)(x)
+            if stage in (1, 0):
+                x = builder.conv2dtr(filters, 3, padding='valid')(x)
+            x = builder.conv2dtr(filters // 4, 3, strides=2, padding='valid')(x)
         x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
         x = keras.layers.add([x, d])
