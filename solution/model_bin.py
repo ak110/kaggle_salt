@@ -85,7 +85,7 @@ def _train_impl(args):
 
     if tk.dl.hvd.is_master():
         pred_val = model.predict(X_val)
-        joblib.dump(pred_val, MODELS_DIR / f'pred-val.fold{args.cv_index}.h5')
+        joblib.dump(pred_val, MODELS_DIR / f'pred-val.fold{args.cv_index}.pkl')
         tk.ml.print_classification_metrics(y_val, pred_val)
 
 
@@ -95,7 +95,7 @@ def load_oofp(X, y):
     pred = np.empty((len(y), 1), dtype=np.float32)
     for cv_index in range(CV_COUNT):
         _, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=cv_index, split_seed=SPLIT_SEED, stratify=False)
-        pred[vi] = joblib.load(MODELS_DIR / f'pred-val.fold{cv_index}.h5')
+        pred[vi] = joblib.load(MODELS_DIR / f'pred-val.fold{cv_index}.pkl')
     return pred
 
 
