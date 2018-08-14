@@ -22,7 +22,7 @@ def _train():
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', choices=('train', 'validate', 'predict'))
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
-    parser.add_argument('--batch-size', default=8, type=int)
+    parser.add_argument('--batch-size', default=16, type=int)
     parser.add_argument('--epochs', default=300, type=int)
     parser.add_argument('--ensemble', action='store_true', help='予測時にアンサンブルを行うのか否か。')
     args = parser.parse_args()
@@ -54,7 +54,7 @@ def _train_impl(args):
     builder = tk.dl.networks.Builder()
 
     inputs = [
-        builder.input_tensor((203, 203, 1)),
+        builder.input_tensor((101, 101, 1)),
         builder.input_tensor((1,)),  # depths
         builder.input_tensor((1,)),  # model_bin
     ]
@@ -64,27 +64,27 @@ def _train_impl(args):
     base_network = keras.applications.NASNetLarge(include_top=False, input_tensor=x)
     x = base_network.outputs[0]
     down_list = []
-    down_list.append(base_network.get_layer(name='activation_1').output)  # stage 0: 101
-    down_list.append(base_network.get_layer(name='activation_12').output)  # stage 1: 51
-    down_list.append(base_network.get_layer(name='activation_95').output)  # stage 2: 26
-    down_list.append(base_network.get_layer(name='activation_178').output)  # stage 3: 13
-    down_list.append(base_network.get_layer(name='activation_260').output)  # stage 4: 7
+    down_list.append(base_network.get_layer(name='activation_1').output)  # stage 0: 50
+    down_list.append(base_network.get_layer(name='activation_12').output)  # stage 1: 25
+    down_list.append(base_network.get_layer(name='activation_95').output)  # stage 2: 13
+    down_list.append(base_network.get_layer(name='activation_178').output)  # stage 3: 7
+    # down_list.append(base_network.get_layer(name='activation_260').output)  # stage 4: 4
 
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(64)(x)
     x = builder.act()(x)
     x = keras.layers.concatenate([x, inputs[1], inputs[2]])
-    x = builder.dense(256)(x)
+    x = builder.dense(64)(x)
     x = builder.act()(x)
     gate = builder.dense(1, activation='sigmoid')(x)
     x = keras.layers.Reshape((1, 1, -1))(x)
 
-    for stage, (d, filters) in list(enumerate(zip(down_list, [32, 64, 128, 256, 512])))[::-1]:
+    for stage, (d, filters) in list(enumerate(zip(down_list, [64, 128, 256, 512])))[::-1]:
         if stage == len(down_list) - 1:
             x = builder.conv2dtr(filters // 4, 7, strides=7)(x)
         else:
             x = builder.conv2dtr(max(filters // 4, 32), 2, strides=2)(x)
-            if stage in (0, 1, 3):
+            if stage in (1, 2, 3):
                 x = builder.dwconv2d(2, padding='valid')(x)
         x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
@@ -95,7 +95,6 @@ def _train_impl(args):
 
     p = builder.conv2d(128)(x_in)
     p = builder.conv2d(128)(p)
-    p = builder.conv2d(128, 3, strides=2, padding='valid')(p)
     p = builder.conv2d(128, use_act=False)(p)
     x = builder.conv2d(128, use_act=False)(x)
     x = keras.layers.add([x, p])
@@ -114,7 +113,7 @@ def _train_impl(args):
     gen.add(tk.image.RandomPadding(probability=1, with_output=True), input_index=0)
     gen.add(tk.image.RandomRotate(probability=0.25, with_output=True), input_index=0)
     gen.add(tk.image.RandomCrop(probability=1, with_output=True), input_index=0)
-    gen.add(tk.image.Resize((203, 203)), input_index=0)
+    gen.add(tk.image.Resize((101, 101)), input_index=0)
     gen.add(tk.generator.ProcessOutput(lambda y: tk.ndimage.resize(y, 101, 101)))
 
     model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
@@ -158,7 +157,7 @@ def predict(ensemble):
             network = tk.dl.models.load_model(MODELS_DIR / f'model.fold{cv_index}.h5', compile=False)
             gen = tk.image.generator.Generator(multiple_input=True)
             gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
-            gen.add(tk.image.Resize((203, 203)), input_index=0)
+            # gen.add(tk.image.Resize((203, 203)), input_index=0)
             model = tk.dl.models.Model(network, gen, batch_size=32)
             pred = model.predict(X, verbose=1)
             pred = utils.apply_crf_all(X[0], pred)
