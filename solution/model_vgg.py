@@ -9,7 +9,6 @@ import data
 import model_bin
 import evaluation
 import pytoolkit as tk
-import utils
 
 MODELS_DIR = pathlib.Path('models/model_vgg')
 REPORTS_DIR = pathlib.Path('reports')
@@ -152,7 +151,6 @@ def load_oofp(X, y):
     for cv_index in range(CV_COUNT):
         _, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=cv_index, split_seed=SPLIT_SEED, stratify=False)
         pred[vi] = joblib.load(MODELS_DIR / f'pred-val.fold{cv_index}.pkl')
-    pred = utils.apply_crf_all(X, pred)
     return pred
 
 
@@ -171,7 +169,6 @@ def predict(ensemble):
             gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
             model = tk.dl.models.Model(network, gen, batch_size=32)
             pred = model.predict(X, verbose=1)
-            pred = utils.apply_crf_all(X[0], pred)
             pred_list.append(pred)
             if not ensemble:
                 break
