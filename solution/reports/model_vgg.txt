@@ -1,26 +1,30 @@
-[INFO ] Accuracy: 0.960 <report_model_vgg:ml.py:548>
-[INFO ] F1-score: 0.918 <report_model_vgg:ml.py:549>
-[INFO ] AUC:      0.977 <report_model_vgg:ml.py:550>
-[INFO ] Logloss:  0.199 <report_model_vgg:ml.py:551>
-[INFO ] max score: 0.821 (threshold: 0.353) <report_model_vgg:evaluation.py:21>
-[INFO ] scores: <report_model_vgg:evaluation.py:22>
-[INFO ]   threshold=0.100: score=0.812 <report_model_vgg:evaluation.py:24>
-[INFO ]   threshold=0.142: score=0.815 <report_model_vgg:evaluation.py:24>
-[INFO ]   threshold=0.184: score=0.817 <report_model_vgg:evaluation.py:24>
-[INFO ]   threshold=0.226: score=0.819 <report_model_vgg:evaluation.py:24>
-[INFO ]   threshold=0.268: score=0.820 <report_model_vgg:evaluation.py:24>
-[INFO ]   threshold=0.311: score=0.821 <report_model_vgg:evaluation.py:24>
-[INFO ]   threshold=0.353: score=0.821 <report_model_vgg:evaluation.py:24>
-[INFO ]   threshold=0.395: score=0.820 <report_model_vgg:evaluation.py:24>
-[INFO ]   threshold=0.437: score=0.820 <report_model_vgg:evaluation.py:24>
-[INFO ]   threshold=0.479: score=0.820 <report_model_vgg:evaluation.py:24>
-[INFO ]   threshold=0.521: score=0.819 <report_model_vgg:evaluation.py:24>
-[INFO ]   threshold=0.563: score=0.819 <report_model_vgg:evaluation.py:24>
-[INFO ]   threshold=0.605: score=0.819 <report_model_vgg:evaluation.py:24>
-[INFO ]   threshold=0.647: score=0.818 <report_model_vgg:evaluation.py:24>
-[INFO ]   threshold=0.689: score=0.817 <report_model_vgg:evaluation.py:24>
-[INFO ]   threshold=0.732: score=0.816 <report_model_vgg:evaluation.py:24>
-[INFO ]   threshold=0.774: score=0.813 <report_model_vgg:evaluation.py:24>
-[INFO ]   threshold=0.816: score=0.811 <report_model_vgg:evaluation.py:24>
-[INFO ]   threshold=0.858: score=0.807 <report_model_vgg:evaluation.py:24>
-[INFO ]   threshold=0.900: score=0.802 <report_model_vgg:evaluation.py:24>
+[DEBUG] _report_impl 開始 <pytoolkit.pytoolkit.log:log.py:101>
+[DEBUG] load_oofp 開始 <pytoolkit.pytoolkit.log:log.py:101>
+[DEBUG] load_oofp 終了 (0.113[s]) <pytoolkit.pytoolkit.log:log.py:107>
+[INFO ] Accuracy: 0.960 <__main__:ml.py:659>
+[INFO ] F1-score: 0.918 <__main__:ml.py:660>
+[INFO ] AUC:      0.978 <__main__:ml.py:661>
+[INFO ] Logloss:  0.129 <__main__:ml.py:662>
+[INFO ] max score: 0.820 (threshold: 0.521) <__main__:evaluation.py:21>
+[INFO ] scores: <__main__:evaluation.py:22>
+[INFO ]   threshold=0.100: score=0.747 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.142: score=0.775 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.184: score=0.789 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.226: score=0.798 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.268: score=0.806 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.311: score=0.811 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.353: score=0.816 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.395: score=0.819 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.437: score=0.819 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.479: score=0.820 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.521: score=0.820 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.563: score=0.820 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.605: score=0.818 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.647: score=0.815 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.689: score=0.811 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.732: score=0.806 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.774: score=0.801 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.816: score=0.792 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.858: score=0.779 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.900: score=0.758 <__main__:evaluation.py:24>
+[DEBUG] _report_impl 終了 (68.726[s]) <pytoolkit.pytoolkit.log:log.py:107>

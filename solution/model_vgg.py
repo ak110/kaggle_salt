@@ -163,7 +163,7 @@ def predict(ensemble):
     for mf in mf_list:
         X = [X, d, mf]
         for cv_index in range(CV_COUNT):
-            network = tk.dl.models.load_model(MODELS_DIR / f'model.fold{cv_index}.h5', compile=False)
+            network = tk.dl.models.load_model(MODELS_DIR / f'model.fold{cv_index}.h5', compile=False, custom_objects={'X_mean': X_mean})
             gen = tk.image.generator.Generator(multiple_input=True)
             gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
             gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
