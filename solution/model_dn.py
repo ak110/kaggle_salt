@@ -117,7 +117,9 @@ def _create_network():
             x = builder.conv2dtr(32, 8, strides=8)(x)
         else:
             x = tk.dl.layers.subpixel_conv2d()(scale=2)(x)
-        x = builder.conv2d(filters, 3, use_act=False)(x)
+        x = builder.dwconv2d()(x)
+        x = builder.dwconv2d()(x)
+        x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
         x = keras.layers.add([x, d])
         x = builder.res_block(filters, dropout=0.25)(x)
