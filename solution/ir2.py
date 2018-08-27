@@ -1,20 +1,19 @@
-#!/usr/bin/env ./_run.sh
+#!/usr/bin/env python3
 import argparse
 import pathlib
 
 import numpy as np
 import sklearn.externals.joblib as joblib
 
-import data
-import model_bin
-import evaluation
+import bin
 import pytoolkit as tk
+from lib import data, evaluation
 
-MODELS_DIR = pathlib.Path('models/model_nas')
+MODELS_DIR = pathlib.Path(f'models/model_{pathlib.Path(__file__).name}')
 REPORTS_DIR = pathlib.Path('reports')
-SPLIT_SEED = 123
+SPLIT_SEED = 234
 CV_COUNT = 5
-INPUT_SIZE = (227, 227)
+INPUT_SIZE = (267, 267)
 
 
 def _train():
@@ -22,7 +21,7 @@ def _train():
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', choices=('check', 'train', 'validate', 'predict'))
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
-    parser.add_argument('--batch-size', default=12, type=int)
+    parser.add_argument('--batch-size', default=16, type=int)
     parser.add_argument('--epochs', default=300, type=int)
     parser.add_argument('--ensemble', action='store_true', help='予測時にアンサンブルを行うのか否か。')
     args = parser.parse_args()
@@ -46,7 +45,7 @@ def _train_impl(args):
     logger = tk.log.get(__name__)
     logger.info(f'args: {args}')
     X, d, y = data.load_train_data()
-    mf = model_bin.load_oofp(X, y)
+    mf = bin.load_oofp(X, y)
     y = data.load_mask(y)
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=SPLIT_SEED, stratify=False)
     (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti], mf[ti]], y[ti]), ([X[vi], d[vi], mf[vi]], y[vi])
@@ -88,20 +87,20 @@ def _create_network():
     inputs = [
         builder.input_tensor(INPUT_SIZE + (1,)),
         builder.input_tensor((1,)),  # depths
-        builder.input_tensor((1,)),  # model_bin
+        builder.input_tensor((1,)),  # bin
     ]
     x = inputs[0]
     x = x_in = builder.preprocess(mode='tf')(x)
     x = keras.layers.concatenate([x, x, x])
-    base_network = keras.applications.NASNetLarge(include_top=False, input_tensor=x)
+    base_network = keras.applications.InceptionResNetV2(include_top=False, input_tensor=x)
     lr_multipliers = {l: 0.1 for l in base_network.layers}
     down_list = []
-    down_list.append(x_in)  # stage 0: 227
-    down_list.append(base_network.get_layer(name='activation_4').output)  # stage 1: 113
-    down_list.append(base_network.get_layer(name='activation_12').output)  # stage 2: 57
-    down_list.append(base_network.get_layer(name='activation_95').output)  # stage 3: 29
-    down_list.append(base_network.get_layer(name='activation_178').output)  # stage 4: 15
-    down_list.append(base_network.get_layer(name='activation_260').output)  # stage 5: 8
+    down_list.append(x_in)  # stage 0: 267
+    down_list.append(base_network.get_layer(name='activation_3').output)  # stage 1: 131
+    down_list.append(base_network.get_layer(name='activation_5').output)  # stage 2: 63
+    down_list.append(base_network.get_layer(name='block35_10_ac').output)  # stage 3: 31
+    down_list.append(base_network.get_layer(name='block17_20_ac').output)  # stage 4: 15
+    down_list.append(base_network.get_layer(name='conv_7b_ac').output)  # stage 5: 7
     x = base_network.outputs[0]
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(64)(x)
@@ -114,11 +113,11 @@ def _create_network():
 
     for stage, (d, filters) in list(enumerate(zip(down_list, [16, 32, 64, 128, 256, 512])))[::-1]:
         if stage == len(down_list) - 1:
-            x = builder.conv2dtr(32, 8, strides=8)(x)
+            x = builder.conv2dtr(32, 7, strides=7)(x)
         else:
-            x = builder.conv2dtr(filters // 4, 3, strides=2, padding='valid' if stage == 0 else 'same')(x)
-            if stage in (4, 3, 2, 1):
-                x = builder.dwconv2d(2, padding='valid')(x)
+            if stage in (1, 0):
+                x = builder.conv2dtr(filters, 3, padding='valid')(x)
+            x = builder.conv2dtr(filters // 4, 3, strides=2, padding='valid')(x)
         x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
         x = keras.layers.add([x, d])
@@ -151,7 +150,7 @@ def load_oofp(X, y):
 def predict(ensemble):
     """予測。"""
     X, d = data.load_test_data()
-    mf_list = model_bin.predict(ensemble)
+    mf_list = bin.predict(ensemble)
     pred_list = []
     for mf in mf_list:
         X = [X, d, mf]

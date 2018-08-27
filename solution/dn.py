@@ -1,23 +1,19 @@
-#!/usr/bin/env ./_run.sh
+#!/usr/bin/env python3
 import argparse
 import pathlib
 
 import numpy as np
 import sklearn.externals.joblib as joblib
 
-import data
-import model_bin
-import evaluation
+import bin
 import pytoolkit as tk
+from lib import data, evaluation
 
-MODELS_DIR = pathlib.Path('models/model_vgg')
+MODELS_DIR = pathlib.Path(f'models/model_{pathlib.Path(__file__).name}')
 REPORTS_DIR = pathlib.Path('reports')
-SPLIT_SEED = 678
+SPLIT_SEED = 789
 CV_COUNT = 5
 INPUT_SIZE = (256, 256)
-
-X_mean = 120.34604
-X_std = 41.069717
 
 
 def _train():
@@ -49,7 +45,7 @@ def _train_impl(args):
     logger = tk.log.get(__name__)
     logger.info(f'args: {args}')
     X, d, y = data.load_train_data()
-    mf = model_bin.load_oofp(X, y)
+    mf = bin.load_oofp(X, y)
     y = data.load_mask(y)
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=SPLIT_SEED, stratify=False)
     (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti], mf[ti]], y[ti]), ([X[vi], d[vi], mf[vi]], y[vi])
@@ -91,27 +87,21 @@ def _create_network():
     inputs = [
         builder.input_tensor(INPUT_SIZE + (1,)),
         builder.input_tensor((1,)),  # depths
-        builder.input_tensor((1,)),  # model_bin
+        builder.input_tensor((1,)),  # bin
     ]
     x = inputs[0]
-    x = keras.layers.Lambda(lambda x: x - X_mean)(x)  # caffe風preprocess
+    x = x_in = builder.preprocess(mode='div255')(x)
     x = keras.layers.concatenate([x, x, x])
-    base_network = keras.applications.VGG16(include_top=False, input_tensor=x)
+    base_network = tk.applications.darknet53.darknet53(include_top=False, input_tensor=x)
     lr_multipliers = {l: 0.1 for l in base_network.layers}
     down_list = []
-    down_list.append(base_network.get_layer(name='block1_pool').input)  # stage 0: 256
-    down_list.append(base_network.get_layer(name='block2_pool').input)  # stage 1: 128
-    down_list.append(base_network.get_layer(name='block3_pool').input)  # stage 2: 64
-    down_list.append(base_network.get_layer(name='block4_pool').input)  # stage 3: 32
-    down_list.append(base_network.get_layer(name='block5_pool').input)  # stage 4: 16
+    down_list.append(x_in)  # stage 0: 256
+    down_list.append(base_network.get_layer(name='add_1').output)  # stage 1: 128
+    down_list.append(base_network.get_layer(name='add_3').output)  # stage 2: 64
+    down_list.append(base_network.get_layer(name='add_11').output)  # stage 3: 32
+    down_list.append(base_network.get_layer(name='add_19').output)  # stage 4: 16
+    down_list.append(base_network.get_layer(name='add_23').output)  # stage 5: 8
     x = base_network.outputs[0]
-    x = builder.conv2d(256, use_act=False)(x)
-    x = builder.res_block(256, dropout=0.25)(x)
-    x = builder.res_block(256, dropout=0.25)(x)
-    x = builder.res_block(256, dropout=0.25)(x)
-    x = builder.bn_act()(x)
-    down_list.append(x)  # stage 5: 8
-
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(64)(x)
     x = builder.act()(x)
@@ -125,7 +115,9 @@ def _create_network():
         if stage == len(down_list) - 1:
             x = builder.conv2dtr(32, 8, strides=8)(x)
         else:
-            x = builder.conv2dtr(filters // 4, 2, strides=2)(x)
+            x = tk.dl.layers.subpixel_conv2d()(scale=2)(x)
+        x = builder.dwconv2d()(x)
+        x = builder.dwconv2d()(x)
         x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
         x = keras.layers.add([x, d])
@@ -158,12 +150,12 @@ def load_oofp(X, y):
 def predict(ensemble):
     """予測。"""
     X, d = data.load_test_data()
-    mf_list = model_bin.predict(ensemble)
+    mf_list = bin.predict(ensemble)
     pred_list = []
     for mf in mf_list:
         X = [X, d, mf]
         for cv_index in range(CV_COUNT):
-            network = tk.dl.models.load_model(MODELS_DIR / f'model.fold{cv_index}.h5', compile=False, custom_objects={'X_mean': X_mean})
+            network = tk.dl.models.load_model(MODELS_DIR / f'model.fold{cv_index}.h5', compile=False)
             gen = tk.image.generator.Generator(multiple_input=True)
             gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
             gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)

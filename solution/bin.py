@@ -1,4 +1,4 @@
-#!/usr/bin/env ./_run.sh
+#!/usr/bin/env python3
 """有無のみを2クラス分類するやつ。"""
 import argparse
 import pathlib
@@ -6,10 +6,10 @@ import pathlib
 import numpy as np
 import sklearn.externals.joblib as joblib
 
-import data
 import pytoolkit as tk
+from lib import data
 
-MODELS_DIR = pathlib.Path('models/model_bin')
+MODELS_DIR = pathlib.Path(f'models/model_{pathlib.Path(__file__).name}')
 REPORTS_DIR = pathlib.Path('reports')
 SPLIT_SEED = 345
 CV_COUNT = 5

@@ -1,4 +1,9 @@
 #!/bin/bash
+
+# 作業用シェルスクリプト。
+
 cd solution
-./model_bin.py
-./model_yolo.py
+
+./run.sh bin
+
+./run.sh yolo

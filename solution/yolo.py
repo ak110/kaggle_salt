@@ -1,20 +1,19 @@
-#!/usr/bin/env ./_run.sh
+#!/usr/bin/env python3
 import argparse
 import pathlib
 
 import numpy as np
 import sklearn.externals.joblib as joblib
 
-import data
-import model_bin
-import evaluation
+import bin
 import pytoolkit as tk
+from lib import data, evaluation
 
-MODELS_DIR = pathlib.Path('models/model_ir2')
+MODELS_DIR = pathlib.Path(f'models/model_{pathlib.Path(__file__).name}')
 REPORTS_DIR = pathlib.Path('reports')
-SPLIT_SEED = 234
+SPLIT_SEED = 456
 CV_COUNT = 5
-INPUT_SIZE = (267, 267)
+INPUT_SIZE = (256, 256)
 
 
 def _train():
@@ -46,7 +45,7 @@ def _train_impl(args):
     logger = tk.log.get(__name__)
     logger.info(f'args: {args}')
     X, d, y = data.load_train_data()
-    mf = model_bin.load_oofp(X, y)
+    mf = bin.load_oofp(X, y)
     y = data.load_mask(y)
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=SPLIT_SEED, stratify=False)
     (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti], mf[ti]], y[ti]), ([X[vi], d[vi], mf[vi]], y[vi])
@@ -57,7 +56,7 @@ def _train_impl(args):
     gen = tk.image.generator.Generator(multiple_input=True)
     gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
     gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True), input_index=0)
-    gen.add(tk.image.Padding(probability=1, with_output=True), input_index=0)
+    gen.add(tk.image.Padding(probability=1, with_output=True, mode='reflect'), input_index=0)
     gen.add(tk.image.RandomRotate(probability=0.25, with_output=True), input_index=0)
     gen.add(tk.image.RandomCrop(probability=1, with_output=True), input_index=0)
     gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
@@ -88,20 +87,21 @@ def _create_network():
     inputs = [
         builder.input_tensor(INPUT_SIZE + (1,)),
         builder.input_tensor((1,)),  # depths
-        builder.input_tensor((1,)),  # model_bin
+        builder.input_tensor((1,)),  # bin
     ]
     x = inputs[0]
-    x = x_in = builder.preprocess(mode='tf')(x)
+    x = x_in = builder.preprocess(mode='div255')(x)
     x = keras.layers.concatenate([x, x, x])
-    base_network = keras.applications.InceptionResNetV2(include_top=False, input_tensor=x)
-    lr_multipliers = {l: 0.1 for l in base_network.layers}
+    base_network = tk.applications.darknet53.darknet53(include_top=False, input_tensor=x, weights=None)
+    tk.dl.models.load_weights(base_network, 'yolov3.h5')
+    lr_multipliers = {}  # {l: 0.1 for l in base_network.layers}
     down_list = []
-    down_list.append(x_in)  # stage 0: 267
-    down_list.append(base_network.get_layer(name='activation_3').output)  # stage 1: 131
-    down_list.append(base_network.get_layer(name='activation_5').output)  # stage 2: 63
-    down_list.append(base_network.get_layer(name='block35_10_ac').output)  # stage 3: 31
-    down_list.append(base_network.get_layer(name='block17_20_ac').output)  # stage 4: 15
-    down_list.append(base_network.get_layer(name='conv_7b_ac').output)  # stage 5: 7
+    down_list.append(x_in)  # stage 0: 256
+    down_list.append(base_network.get_layer(name='add_1').output)  # stage 1: 128
+    down_list.append(base_network.get_layer(name='add_3').output)  # stage 2: 64
+    down_list.append(base_network.get_layer(name='add_11').output)  # stage 3: 32
+    down_list.append(base_network.get_layer(name='add_19').output)  # stage 4: 16
+    down_list.append(base_network.get_layer(name='add_23').output)  # stage 5: 8
     x = base_network.outputs[0]
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(64)(x)
@@ -114,11 +114,10 @@ def _create_network():
 
     for stage, (d, filters) in list(enumerate(zip(down_list, [16, 32, 64, 128, 256, 512])))[::-1]:
         if stage == len(down_list) - 1:
-            x = builder.conv2dtr(32, 7, strides=7)(x)
+            x = builder.conv2dtr(32, 8, strides=8)(x)
         else:
-            if stage in (1, 0):
-                x = builder.conv2dtr(filters, 3, padding='valid')(x)
-            x = builder.conv2dtr(filters // 4, 3, strides=2, padding='valid')(x)
+            x = tk.dl.layers.subpixel_conv2d()(scale=2)(x)
+        x = builder.dwconv2d()(x)
         x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
         x = keras.layers.add([x, d])
@@ -151,7 +150,7 @@ def load_oofp(X, y):
 def predict(ensemble):
     """予測。"""
     X, d = data.load_test_data()
-    mf_list = model_bin.predict(ensemble)
+    mf_list = bin.predict(ensemble)
     pred_list = []
     for mf in mf_list:
         X = [X, d, mf]
