@@ -53,6 +53,7 @@ def _train_impl(args):
     gen = tk.image.generator.Generator(multiple_input=True)
     gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
     gen.add(tk.image.RandomFlipLR(probability=0.5), input_index=0)
+    gen.add(tk.image.RandomPadding(probability=0.25), input_index=0)
     gen.add(tk.image.RandomRotate(probability=0.25), input_index=0)
     gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
 

@@ -57,7 +57,8 @@ def _train_impl(args):
     gen = tk.image.generator.Generator(multiple_input=True)
     gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
     gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True), input_index=0)
-    gen.add(tk.image.RandomPadding(probability=1, with_output=True, mode='reflect'), input_index=0)
+    gen.add(tk.image.Padding(probability=1, with_output=True, mode='reflect'), input_index=0)
+    gen.add(tk.image.RandomRotate(probability=0.25, with_output=True), input_index=0)
     gen.add(tk.image.RandomCrop(probability=1, with_output=True), input_index=0)
     gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
     gen.add(tk.generator.ProcessOutput(lambda y: tk.ndimage.resize(y, 101, 101)))
@@ -94,7 +95,7 @@ def _create_network():
     x = keras.layers.concatenate([x, x, x])
     base_network = tk.applications.darknet53.darknet53(include_top=False, input_tensor=x, weights=None)
     tk.dl.models.load_weights(base_network, 'yolov3.h5')
-    lr_multipliers = {l: 0.1 for l in base_network.layers}
+    lr_multipliers = {}  # {l: 0.1 for l in base_network.layers}
     down_list = []
     down_list.append(x_in)  # stage 0: 256
     down_list.append(base_network.get_layer(name='add_1').output)  # stage 1: 128
@@ -117,7 +118,8 @@ def _create_network():
             x = builder.conv2dtr(32, 8, strides=8)(x)
         else:
             x = tk.dl.layers.subpixel_conv2d()(scale=2)(x)
-        x = builder.conv2d(filters, 3, use_act=False)(x)
+        x = builder.dwconv2d()(x)
+        x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
         x = keras.layers.add([x, d])
         x = builder.res_block(filters, dropout=0.25)(x)
