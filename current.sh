@@ -4,6 +4,4 @@
 
 cd solution
 
-./run.sh bin
-
 ./run.sh yolo
