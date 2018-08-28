@@ -9,7 +9,7 @@ import bin
 import pytoolkit as tk
 from lib import data, evaluation
 
-MODELS_DIR = pathlib.Path(f'models/model_{pathlib.Path(__file__).name}')
+MODELS_DIR = pathlib.Path(f'models/model_{pathlib.Path(__file__).stem}')
 REPORTS_DIR = pathlib.Path('reports')
 SPLIT_SEED = 456
 CV_COUNT = 5

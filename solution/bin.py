@@ -9,7 +9,7 @@ import sklearn.externals.joblib as joblib
 import pytoolkit as tk
 from lib import data
 
-MODELS_DIR = pathlib.Path(f'models/model_{pathlib.Path(__file__).name}')
+MODELS_DIR = pathlib.Path(f'models/model_{pathlib.Path(__file__).stem}')
 REPORTS_DIR = pathlib.Path('reports')
 SPLIT_SEED = 345
 CV_COUNT = 5
