@@ -11,9 +11,9 @@ from lib import data, evaluation
 
 MODELS_DIR = pathlib.Path(f'models/model_{pathlib.Path(__file__).stem}')
 REPORTS_DIR = pathlib.Path('reports')
-SPLIT_SEED = 567
+SPLIT_SEED = 12
 CV_COUNT = 5
-INPUT_SIZE = (404, 404)
+INPUT_SIZE = (101, 101)
 
 
 def _train():
@@ -21,12 +21,12 @@ def _train():
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', choices=('check', 'train', 'validate', 'predict'))
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
-    parser.add_argument('--batch-size', default=12, type=int)
+    parser.add_argument('--batch-size', default=32, type=int)
     parser.add_argument('--epochs', default=300, type=int)
     parser.add_argument('--ensemble', action='store_true', help='予測時にアンサンブルを行うのか否か。')
     args = parser.parse_args()
     if args.mode == 'check':
-        _create_network()[0].summary()
+        _create_network().summary()
     elif args.mode == 'train':
         with tk.dl.session(use_horovod=True):
             tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
@@ -51,7 +51,7 @@ def _train_impl(args):
     (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti], mf[ti]], y[ti]), ([X[vi], d[vi], mf[vi]], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
 
-    network, lr_multipliers = _create_network()
+    network = _create_network()
 
     gen = tk.image.generator.Generator(multiple_input=True)
     gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
@@ -63,7 +63,7 @@ def _train_impl(args):
     gen.add(tk.generator.ProcessOutput(lambda y: tk.ndimage.resize(y, 101, 101)))
 
     model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
-    model.compile(sgd_lr=0.5 / 256, loss='binary_crossentropy', metrics=['acc'], lr_multipliers=lr_multipliers)
+    model.compile(sgd_lr=0.5 / 256, loss='binary_crossentropy', metrics=['acc'])
     model.summary()
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
@@ -90,18 +90,17 @@ def _create_network():
         builder.input_tensor((1,)),  # bin
     ]
     x = inputs[0]
-    x = x_in = builder.preprocess(mode='div255')(x)
-    x = keras.layers.concatenate([x, x, x])
-    base_network = tk.applications.darknet53.darknet53(include_top=False, input_tensor=x)
-    lr_multipliers = {l: 0.1 for l in base_network.layers}
+    x = builder.preprocess()(x)
     down_list = []
-    down_list.append(x_in)  # stage 0: 404
-    down_list.append(base_network.get_layer(name='add_1').output)  # stage 1: 201
-    down_list.append(base_network.get_layer(name='add_3').output)  # stage 2: 101
-    down_list.append(base_network.get_layer(name='add_11').output)  # stage 3: 50
-    down_list.append(base_network.get_layer(name='add_19').output)  # stage 4: 25
-    down_list.append(base_network.get_layer(name='add_23').output)  # stage 5: 12
-    x = base_network.outputs[0]
+    for stage, filters in enumerate([32, 64, 128, 256, 512]):
+        if stage != 0:
+            x = keras.layers.MaxPooling2D(padding='same')(x)
+        x = builder.conv2d(filters)(x)
+        x = builder.conv2d(filters)(x)
+        down_list.append(x)
+
+    x = builder.conv2d(512)(x)
+    x = builder.conv2d(512)(x)
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(64)(x)
     x = builder.act()(x)
@@ -111,14 +110,20 @@ def _create_network():
     gate = builder.dense(1, activation='sigmoid')(x)
     x = keras.layers.Reshape((1, 1, -1))(x)
 
-    for stage, (d, filters) in list(enumerate(zip(down_list, [8, 16, 32, 64, 128, 256])))[::-1][:4]:
+    # stage 0: 101
+    # stage 1: 51
+    # stage 2: 26
+    # stage 3: 13
+    # stage 4: 7
+    for stage, d in list(enumerate(down_list))[::-1]:
+        filters = builder.shape(d)[-1]
         if stage == len(down_list) - 1:
-            x = builder.conv2dtr(32, 12, strides=12)(x)
+            x = builder.conv2dtr(32, 7, strides=7)(x)
         else:
             x = tk.dl.layers.subpixel_conv2d()(scale=2)(x)
-            if stage in (4, 2):
-                x = builder.conv2dtr(filters, 2, padding='valid')(x)
-        x = builder.dwconv2d()(x)
+            if stage in (0, 1, 3):
+                x = builder.conv2d(filters, 2, padding='valid')(x)
+        x = builder.dwconv2d(5)(x)
         x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
         x = keras.layers.add([x, d])
@@ -128,7 +133,7 @@ def _create_network():
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     x = keras.layers.multiply([x, gate])
     network = keras.models.Model(inputs, x)
-    return network, lr_multipliers
+    return network
 
 
 @tk.log.trace()
