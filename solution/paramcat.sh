@@ -1,3 +1,3 @@
 #!/bin/bash
 echo -e '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n'
-egrep '^(MODELS_DIR|SPLIT_SEED)' *.py
+egrep '^(SPLIT_SEED)' *.py
