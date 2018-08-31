@@ -58,7 +58,7 @@ def _train_impl(args):
     gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
 
     model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
-    model.compile(sgd_lr=0.1 / 128, loss='binary_crossentropy', metrics=['acc'])
+    model.compile(sgd_lr=0.1 / 128, loss='binary_crossentropy', metrics=[tk.dl.metrics.binary_accuracy])
     model.summary()
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
