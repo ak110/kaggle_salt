@@ -4,9 +4,9 @@ import pathlib
 
 import numpy as np
 import sklearn.externals.joblib as joblib
+from lib import data, evaluation
 
 import pytoolkit as tk
-from lib import data, evaluation
 
 MODEL_NAME = pathlib.Path(__file__).stem
 MODELS_DIR = pathlib.Path(f'models/{MODEL_NAME}')

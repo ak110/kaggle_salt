@@ -1,6 +1,7 @@
 import pathlib
 
 import cv2
+import numba
 import numpy as np
 import pandas as pd
 
@@ -40,20 +41,21 @@ def _load_depths(id_list):
 
 
 def load_mask(y):
-    y = np.array([cv2.imread(str(p), cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255 for p in tk.tqdm(y)])
+    y = np.array([cv2.imread(str(p), cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255 for p in tk.tqdm(y, desc='load_mask')])
     y = np.expand_dims(y, axis=-1)
     return y
 
 
 def save_submission(save_path, pred):
     id_list = pd.read_csv(TEST_PATH)['id'].values
-    pred_dict = {id_: _encode_rl(pred[i]) for i, id_ in enumerate(tk.tqdm(id_list))}
+    pred_dict = {id_: _encode_rl(pred[i]) for i, id_ in enumerate(tk.tqdm(id_list, desc='encode_rl'))}
     df = pd.DataFrame.from_dict(pred_dict, orient='index')
     df.index.names = ['id']
     df.columns = ['rle_mask']
     df.to_csv(str(save_path))
 
 
+@numba.jit('str(uint8[:, :])')
 def _encode_rl(img):
     """ランレングス。"""
     img = img.reshape(img.shape[0] * img.shape[1], order='F')

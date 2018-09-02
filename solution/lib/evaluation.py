@@ -14,7 +14,7 @@ def log_evaluation(y_val, pred_val, print_fn=None):
     # 閾値の最適化
     threshold_list = np.linspace(0.1, 0.9, 20)
     score_list = []
-    for th in tk.tqdm(threshold_list):
+    for th in tk.tqdm(threshold_list, desc='threshold'):
         score = compute_score(np.int32(y_val > 0.5), np.int32(pred_val > th))
         score_list.append(score)
     best_index = np.argmax(score_list)
