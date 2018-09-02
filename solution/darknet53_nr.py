@@ -98,6 +98,7 @@ def _create_network():
     down_list.append(base_network.get_layer(name='add_11').output)  # stage 3: 25
     down_list.append(base_network.get_layer(name='add_19').output)  # stage 4: 12
     down_list.append(base_network.get_layer(name='add_23').output)  # stage 5: 6
+
     x = base_network.outputs[0]
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(64)(x)

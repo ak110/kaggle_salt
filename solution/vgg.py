@@ -97,8 +97,9 @@ def _create_network():
     down_list.append(base_network.get_layer(name='block3_pool').input)  # stage 2: 64
     down_list.append(base_network.get_layer(name='block4_pool').input)  # stage 3: 32
     down_list.append(base_network.get_layer(name='block5_pool').input)  # stage 4: 16
+
     x = base_network.outputs[0]
-    x = builder.conv2d(256, use_act=False)(x)
+    x = builder.conv2d(256, 1, use_act=False)(x)
     x = builder.res_block(256, dropout=0.25)(x)
     x = builder.res_block(256, dropout=0.25)(x)
     x = builder.res_block(256, dropout=0.25)(x)

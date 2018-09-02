@@ -91,7 +91,7 @@ def _create_network():
     x = keras.layers.concatenate([x, x, x])
     base_network = tk.applications.darknet53.darknet53(include_top=False, input_tensor=x, weights=None)
     tk.dl.models.load_weights(base_network, 'yolov3.h5')
-    lr_multipliers = {l: 0.03 for l in base_network.layers}
+    lr_multipliers = {l: 0.1 for l in base_network.layers}
     down_list = []
     down_list.append(x_in)  # stage 0: 256
     down_list.append(base_network.get_layer(name='add_1').output)  # stage 1: 128
@@ -99,6 +99,8 @@ def _create_network():
     down_list.append(base_network.get_layer(name='add_11').output)  # stage 3: 32
     down_list.append(base_network.get_layer(name='add_19').output)  # stage 4: 16
     down_list.append(base_network.get_layer(name='add_23').output)  # stage 5: 8
+
+
     x = base_network.outputs[0]
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(64)(x)
