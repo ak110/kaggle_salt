@@ -106,14 +106,12 @@ def _create_network():
     x = builder.dense(256)(x)
     x = builder.act()(x)
     x = keras.layers.Reshape((1, 1, -1))(x)
+    x = builder.conv2dtr(256, 4, strides=4)(x)
 
     for stage, (d, filters) in list(enumerate(zip(down_list, [16, 32, 64, 128, 256, 512])))[::-1]:
-        if stage == len(down_list) - 1:
-            x = builder.conv2dtr(32, 8, strides=8)(x)
-        else:
-            x = tk.dl.layers.subpixel_conv2d()(scale=2)(x)
-        x = builder.dwconv2d()(x)
-        x = builder.dwconv2d()(x)
+        x = tk.dl.layers.subpixel_conv2d()(scale=2)(x)
+        x = builder.dwconv2d(5)(x)
+
         x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
         x = keras.layers.add([x, d])
@@ -122,7 +120,6 @@ def _create_network():
         x = builder.bn_act()(x)
     x = tk.dl.layers.resize2d()((101, 101))(x)
     x = builder.conv2d(64, use_act=False)(x)
-    x = builder.res_block(64, dropout=0.25)(x)
     x = builder.res_block(64, dropout=0.25)(x)
     x = builder.res_block(64, dropout=0.25)(x)
     x = builder.bn_act()(x)

@@ -46,7 +46,7 @@ def _train_impl(args):
     X, d, y = data.load_train_data()
     y = data.load_mask(y)
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=SPLIT_SEED, stratify=False)
-    (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti], mf[ti]], y[ti]), ([X[vi], d[vi], mf[vi]], y[vi])
+    (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti]], y[ti]), ([X[vi], d[vi]], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
 
     network = _create_network()
@@ -105,6 +105,7 @@ def _create_network():
     x = builder.dense(256)(x)
     x = builder.act()(x)
     x = keras.layers.Reshape((1, 1, -1))(x)
+    x = builder.conv2dtr(256, 4, strides=4)(x)
 
     # stage 0: 101
     # stage 1: 51
@@ -113,12 +114,9 @@ def _create_network():
     # stage 4: 7
     for stage, d in list(enumerate(down_list))[::-1]:
         filters = builder.shape(d)[-1]
-        if stage == len(down_list) - 1:
-            x = builder.conv2dtr(32, 7, strides=7)(x)
-        else:
-            x = tk.dl.layers.subpixel_conv2d()(scale=2)(x)
-            if stage in (0, 1, 3):
-                x = builder.conv2d(filters, 2, padding='valid')(x)
+        x = tk.dl.layers.subpixel_conv2d()(scale=2)(x)
+        if stage in (4, 3, 1, 0):
+            x = builder.conv2d(filters, 2, padding='valid')(x)
         x = builder.dwconv2d(5)(x)
         x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
