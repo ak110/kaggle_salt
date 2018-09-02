@@ -13,8 +13,8 @@ MODELS_DIR = pathlib.Path(f'models/{MODEL_NAME}')
 REPORTS_DIR = pathlib.Path('reports')
 SPLIT_SEED = int(MODEL_NAME.encode('utf-8').hex(), 16) % 10000000
 CV_COUNT = 5
-INPUT_SIZE = (256, 256)
-BATCH_SIZE = 16
+INPUT_SIZE = (227, 227)
+BATCH_SIZE = 12
 EPOCHS = 300
 
 
@@ -87,30 +87,31 @@ def _create_network():
         builder.input_tensor((1,)),  # depths
     ]
     x = inputs[0]
-    x = x_in = builder.preprocess(mode='div255')(x)
+    x = x_in = builder.preprocess(mode='tf')(x)
     x = keras.layers.concatenate([x, x, x])
-    base_network = tk.applications.darknet53.darknet53(include_top=False, input_tensor=x)
+    base_network = keras.applications.NASNetLarge(include_top=False, input_tensor=x)
     lr_multipliers = {l: 0.1 for l in base_network.layers}
     down_list = []
-    down_list.append(x_in)  # stage 0: 256
-    down_list.append(base_network.get_layer(name='add_1').output)  # stage 1: 128
-    down_list.append(base_network.get_layer(name='add_3').output)  # stage 2: 64
-    down_list.append(base_network.get_layer(name='add_11').output)  # stage 3: 32
-    down_list.append(base_network.get_layer(name='add_19').output)  # stage 4: 16
-    down_list.append(base_network.get_layer(name='add_23').output)  # stage 5: 8
+    down_list.append(x_in)  # stage 0: 227
+    down_list.append(base_network.get_layer(name='activation_4').output)  # stage 1: 113
+    down_list.append(base_network.get_layer(name='activation_12').output)  # stage 2: 57
+    down_list.append(base_network.get_layer(name='activation_95').output)  # stage 3: 29
+    down_list.append(base_network.get_layer(name='activation_178').output)  # stage 4: 15
+    down_list.append(base_network.get_layer(name='activation_260').output)  # stage 5: 8
     x = base_network.outputs[0]
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(64)(x)
     x = builder.act()(x)
-    x = keras.layers.concatenate([x, inputs[1], inputs[2]])
+    x = keras.layers.concatenate([x, inputs[1]])
     x = builder.dense(256)(x)
     x = builder.act()(x)
     x = keras.layers.Reshape((1, 1, -1))(x)
     x = builder.conv2dtr(256, 4, strides=4)(x)
 
     for stage, (d, filters) in list(enumerate(zip(down_list, [16, 32, 64, 128, 256, 512])))[::-1]:
-        x = tk.dl.layers.subpixel_conv2d()(scale=2)(x)
-        x = builder.dwconv2d(5)(x)
+        x = builder.conv2dtr(filters // 4, 3, strides=2, padding='valid' if stage == 0 else 'same')(x)
+        if stage in (4, 3, 2, 1):
+            x = builder.dwconv2d(2, padding='valid')(x)
         x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
         x = keras.layers.add([x, d])

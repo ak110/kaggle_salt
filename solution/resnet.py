@@ -13,7 +13,7 @@ MODELS_DIR = pathlib.Path(f'models/{MODEL_NAME}')
 REPORTS_DIR = pathlib.Path('reports')
 SPLIT_SEED = int(MODEL_NAME.encode('utf-8').hex(), 16) % 10000000
 CV_COUNT = 5
-INPUT_SIZE = (202, 202)
+INPUT_SIZE = (224, 224)
 BATCH_SIZE = 16
 EPOCHS = 300
 
@@ -86,39 +86,47 @@ def _create_network():
         builder.input_tensor(INPUT_SIZE + (1,)),
         builder.input_tensor((1,)),  # depths
     ]
-    x = inputs[0]
-    x = x_in = builder.preprocess(mode='div255')(x)
+    x = x_in = inputs[0]
     x = keras.layers.concatenate([x, x, x])
-    base_network = tk.applications.darknet53.darknet53(include_top=False, input_tensor=x)
+    x = builder.preprocess(mode='caffe')(x)
+    base_network = keras.applications.ResNet50(include_top=False, input_tensor=x)
     lr_multipliers = {l: 0.1 for l in base_network.layers}
     down_list = []
-    down_list.append(x_in)  # stage 0: 202
-    down_list.append(base_network.get_layer(name='add_1').output)  # stage 1: 101
-    down_list.append(base_network.get_layer(name='add_3').output)  # stage 2: 50
-    down_list.append(base_network.get_layer(name='add_11').output)  # stage 3: 25
-    down_list.append(base_network.get_layer(name='add_19').output)  # stage 4: 12
-    down_list.append(base_network.get_layer(name='add_23').output)  # stage 5: 6
-    x = base_network.outputs[0]
+    down_list.append(x_in)  # stage 0: 224
+    down_list.append(base_network.get_layer(name='max_pooling2d_1').input)  # stage 1: 112
+    down_list.append(base_network.get_layer(name='res3a_branch2a').input)  # stage 2: 55
+    down_list.append(base_network.get_layer(name='res4a_branch2a').input)  # stage 3: 28
+    down_list.append(base_network.get_layer(name='res5a_branch2a').input)  # stage 4: 14
+    down_list.append(base_network.outputs[0])  # stage 5: 7
+
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(64)(x)
     x = builder.act()(x)
-    x = keras.layers.concatenate([x, inputs[1], inputs[2]])
+    x = keras.layers.concatenate([x, inputs[1]])
     x = builder.dense(256)(x)
     x = builder.act()(x)
     x = keras.layers.Reshape((1, 1, -1))(x)
-    x = builder.conv2dtr(256, 3, strides=3)(x)
 
-    for stage, (d, filters) in list(enumerate(zip(down_list, [16, 32, 64, 128, 256, 512])))[::-1][:5]:
-        x = tk.dl.layers.subpixel_conv2d()(scale=2)(x)
-        if stage in (3, 1):
-            x = builder.conv2dtr(filters, 2, padding='valid')(x)
-        x = builder.dwconv2d(5)(x)
+    for stage, (d, filters) in list(enumerate(zip(down_list, [16, 32, 64, 128, 256, 512])))[::-1]:
+        if stage == len(down_list) - 1:
+            x = builder.conv2dtr(32, 7, strides=7)(x)
+        else:
+            if stage == 1:
+                x = builder.conv2dtr(filters // 4, 2, strides=1, padding='valid')(x)
+            x = builder.conv2dtr(filters // 4, 3, strides=2)(x)
+            if stage == 2:
+                x = builder.dwconv2d(2, padding='valid')(x)
         x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
         x = keras.layers.add([x, d])
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.bn_act()(x)
+    x = tk.dl.layers.resize2d()((101, 101))(x)
+    x = builder.conv2d(64, use_act=False)(x)
+    x = builder.res_block(64, dropout=0.25)(x)
+    x = builder.res_block(64, dropout=0.25)(x)
+    x = builder.bn_act()(x)
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     network = keras.models.Model(inputs, x)
     return network, lr_multipliers
@@ -140,7 +148,7 @@ def predict(ensemble):
     X, d = data.load_test_data()
     pred_list = []
     for cv_index in range(CV_COUNT):
-        network = tk.dl.models.load_model(MODELS_DIR / f'model.fold{cv_index}.h5', compile=False)
+        network = tk.dl.models.load_model(MODELS_DIR / f'model.fold{cv_index}.h5', compile=False, custom_objects={'X_mean': X_mean})
         gen = tk.image.generator.Generator(multiple_input=True)
         gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
         gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)

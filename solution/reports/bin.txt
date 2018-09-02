@@ -1,8 +1,0 @@
-[DEBUG] _report_impl 開始 <pytoolkit.pytoolkit.log:log.py:101>
-[DEBUG] load_oofp 開始 <pytoolkit.pytoolkit.log:log.py:101>
-[DEBUG] load_oofp 終了 (0.036[s]) <pytoolkit.pytoolkit.log:log.py:107>
-[INFO ] Accuracy: 0.930 <__main__:ml.py:659>
-[INFO ] F1-score: 0.942 <__main__:ml.py:660>
-[INFO ] AUC:      0.971 <__main__:ml.py:661>
-[INFO ] Logloss:  0.211 <__main__:ml.py:662>
-[DEBUG] _report_impl 終了 (12.049[s]) <pytoolkit.pytoolkit.log:log.py:107>

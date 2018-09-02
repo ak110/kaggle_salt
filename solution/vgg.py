@@ -17,9 +17,6 @@ INPUT_SIZE = (256, 256)
 BATCH_SIZE = 16
 EPOCHS = 300
 
-X_mean = 120.34604
-X_std = 41.069717
-
 
 def _main():
     tk.better_exceptions()
@@ -90,8 +87,8 @@ def _create_network():
         builder.input_tensor((1,)),  # depths
     ]
     x = inputs[0]
-    x = keras.layers.Lambda(lambda x: x - X_mean)(x)  # caffe風preprocess
     x = keras.layers.concatenate([x, x, x])
+    x = builder.preprocess(mode='caffe')(x)
     base_network = keras.applications.VGG16(include_top=False, input_tensor=x)
     lr_multipliers = {l: 0.1 for l in base_network.layers}
     down_list = []
@@ -111,14 +108,15 @@ def _create_network():
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(64)(x)
     x = builder.act()(x)
-    x = keras.layers.concatenate([x, inputs[1], inputs[2]])
+    x = keras.layers.concatenate([x, inputs[1]])
     x = builder.dense(256)(x)
     x = builder.act()(x)
     x = keras.layers.Reshape((1, 1, -1))(x)
     x = builder.conv2dtr(256, 4, strides=4)(x)
 
     for stage, (d, filters) in list(enumerate(zip(down_list, [16, 32, 64, 128, 256, 512])))[::-1]:
-        x = builder.conv2dtr(filters // 4, 2, strides=2)(x)
+        x = tk.dl.layers.subpixel_conv2d()(scale=2)(x)
+        x = builder.dwconv2d(5)(x)
         x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
         x = keras.layers.add([x, d])

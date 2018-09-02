@@ -1,7 +1,6 @@
 import pathlib
 
 import cv2
-import numba
 import numpy as np
 import pandas as pd
 
@@ -55,7 +54,6 @@ def save_submission(save_path, pred):
     df.to_csv(str(save_path))
 
 
-@numba.jit('str(uint8[:, :])')
 def _encode_rl(img):
     """ランレングス。"""
     img = img.reshape(img.shape[0] * img.shape[1], order='F')
