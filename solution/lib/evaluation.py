@@ -22,21 +22,43 @@ def log_evaluation(y_val, pred_val, print_fn=None):
     print_fn('scores:')
     for th, score in zip(threshold_list, score_list):
         print_fn(f'  threshold={th:.3f}: score={score:.3f}')
+    threshold = threshold_list[best_index]
 
-    return threshold_list[best_index]
+    # オレオレ指標
+    print_metrics(np.int32(y_val > 0.5), np.int32(pred_val > threshold), print_fn=print_fn)
+
+    return threshold
 
 
 def compute_score(y_true, y_pred):
     """適当スコア算出。"""
     obj = np.sum(y_true, axis=(1, 2, 3)) > 0
-    bg = np.logical_not(obj)
-    pred_bg = np.sum(y_pred, axis=(1, 2, 3)) == 0
+    empty = np.logical_not(obj)
+    pred_empty = np.sum(y_pred, axis=(1, 2, 3)) == 0
     prec_list = []
     for threshold in np.arange(0.5, 1.0, 0.05):
         inter = np.sum(np.logical_and(y_true, y_pred), axis=(1, 2, 3))
         union = np.sum(np.logical_or(y_true, y_pred), axis=(1, 2, 3))
         iou = inter / np.maximum(union, 1)
         pred_obj = iou > threshold
-        match = np.logical_and(obj, pred_obj) + np.logical_and(bg, pred_bg)
+        match = np.logical_and(obj, pred_obj) + np.logical_and(empty, pred_empty)
         prec_list.append(np.sum(match) / len(y_true))
     return np.mean(prec_list)
+
+
+def print_metrics(y_true, y_pred, print_fn):
+    """オレオレ指標。"""
+    obj = np.sum(y_true, axis=(1, 2, 3)) > 0
+    empty = np.logical_not(obj)
+
+    # 答えが空でないときのIoUの平均
+    inter = np.sum(np.logical_and(y_true, y_pred), axis=(1, 2, 3))
+    union = np.sum(np.logical_or(y_true, y_pred), axis=(1, 2, 3))
+    iou = inter / np.maximum(union, 1)
+    iou_mean = np.mean(iou[obj])
+    print_fn(f'IoU mean:  {iou_mean:.3f}')
+
+    # 答えが空の場合の正解率
+    pred_empty = np.sum(y_pred, axis=(1, 2, 3)) == 0
+    acc_empty = np.sum(np.logical_and(empty, pred_empty)) / np.sum(empty)
+    print_fn(f'Acc empty: {acc_empty:.3f}')
