@@ -34,7 +34,7 @@ def _main():
             _train(args)
     elif args.mode == 'validate':
         tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt')
-        _report_impl()
+        _validate()
     else:
         assert args.mode == 'predict'  # このモデルは単体では予測できないので処理無し。
 
@@ -129,7 +129,7 @@ def predict(ensemble):
 
 
 @tk.log.trace()
-def _report_impl():
+def _validate():
     """検証＆閾値決定。"""
     logger = tk.log.get(__name__)
     X, _, y = data.load_train_data()

@@ -33,11 +33,11 @@ def _main():
             _train(args)
     elif args.mode == 'validate':
         tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt')
-        _report_impl()
+        _validate()
     else:
         assert args.mode == 'predict'
         tk.log.init(MODELS_DIR / 'predict.log')
-        _predict_impl(args)
+        _predict(args)
 
 
 @tk.log.trace()
@@ -157,7 +157,7 @@ def predict(ensemble):
 
 
 @tk.log.trace()
-def _report_impl():
+def _validate():
     """検証＆閾値決定。"""
     logger = tk.log.get(__name__)
     X, _, y = data.load_train_data()
@@ -168,7 +168,7 @@ def _report_impl():
 
 
 @tk.log.trace()
-def _predict_impl(args):
+def _predict(args):
     """予測。"""
     logger = tk.log.get(__name__)
     threshold = float((MODELS_DIR / 'threshold.txt').read_text())
