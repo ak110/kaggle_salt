@@ -8,9 +8,10 @@ import sklearn.externals.joblib as joblib
 import pytoolkit as tk
 from lib import data, evaluation
 
-MODELS_DIR = pathlib.Path(f'models/model_{pathlib.Path(__file__).stem}')
+MODEL_NAME = pathlib.Path(__file__).stem
+MODELS_DIR = pathlib.Path(f'models/{MODEL_NAME}')
 REPORTS_DIR = pathlib.Path('reports')
-SPLIT_SEED = 789
+SPLIT_SEED = int(MODEL_NAME.encode('utf-8').hex(), 16) % 10000000
 CV_COUNT = 5
 INPUT_SIZE = (256, 256)
 
@@ -31,7 +32,7 @@ def _main():
             tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
             _train_impl(args)
     elif args.mode == 'validate':
-        tk.log.init(REPORTS_DIR / f'{MODELS_DIR.name}.txt')
+        tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt')
         _report_impl()
     else:
         assert args.mode == 'predict'
@@ -111,7 +112,6 @@ def _create_network():
     for stage, (d, filters) in list(enumerate(zip(down_list, [16, 32, 64, 128, 256, 512])))[::-1]:
         x = tk.dl.layers.subpixel_conv2d()(scale=2)(x)
         x = builder.dwconv2d(5)(x)
-
         x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
         x = keras.layers.add([x, d])
