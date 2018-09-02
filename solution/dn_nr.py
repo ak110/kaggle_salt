@@ -15,7 +15,7 @@ CV_COUNT = 5
 INPUT_SIZE = (202, 202)
 
 
-def _train():
+def _main():
     tk.better_exceptions()
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', choices=('check', 'train', 'validate', 'predict'))
@@ -175,4 +175,4 @@ def _predict_impl(args):
 
 
 if __name__ == '__main__':
-    _train()
+    _main()

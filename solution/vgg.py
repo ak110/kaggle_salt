@@ -18,7 +18,7 @@ X_mean = 120.34604
 X_std = 41.069717
 
 
-def _train():
+def _main():
     tk.better_exceptions()
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', choices=('check', 'train', 'validate', 'predict'))
@@ -188,4 +188,4 @@ def _predict_impl(args):
 
 
 if __name__ == '__main__':
-    _train()
+    _main()
