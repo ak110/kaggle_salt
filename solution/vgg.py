@@ -5,7 +5,6 @@ import pathlib
 import numpy as np
 import sklearn.externals.joblib as joblib
 
-import bin
 import pytoolkit as tk
 from lib import data, evaluation
 
@@ -48,10 +47,9 @@ def _train_impl(args):
     logger = tk.log.get(__name__)
     logger.info(f'args: {args}')
     X, d, y = data.load_train_data()
-    mf = bin.load_oofp(X, y)
     y = data.load_mask(y)
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=SPLIT_SEED, stratify=False)
-    (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti], mf[ti]], y[ti]), ([X[vi], d[vi], mf[vi]], y[vi])
+    (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti]], y[ti]), ([X[vi], d[vi]], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
 
     network, lr_multipliers = _create_network()
@@ -90,7 +88,6 @@ def _create_network():
     inputs = [
         builder.input_tensor(INPUT_SIZE + (1,)),
         builder.input_tensor((1,)),  # depths
-        builder.input_tensor((1,)),  # bin
     ]
     x = inputs[0]
     x = keras.layers.Lambda(lambda x: x - X_mean)(x)  # caffe風preprocess
@@ -117,7 +114,6 @@ def _create_network():
     x = keras.layers.concatenate([x, inputs[1], inputs[2]])
     x = builder.dense(256)(x)
     x = builder.act()(x)
-    gate = builder.dense(1, activation='sigmoid')(x)
     x = keras.layers.Reshape((1, 1, -1))(x)
 
     for stage, (d, filters) in list(enumerate(zip(down_list, [16, 32, 64, 128, 256, 512])))[::-1]:
@@ -135,10 +131,8 @@ def _create_network():
     x = builder.conv2d(64, use_act=False)(x)
     x = builder.res_block(64, dropout=0.25)(x)
     x = builder.res_block(64, dropout=0.25)(x)
-    x = builder.res_block(64, dropout=0.25)(x)
     x = builder.bn_act()(x)
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
-    x = keras.layers.multiply([x, gate])
     network = keras.models.Model(inputs, x)
     return network, lr_multipliers
 
@@ -157,20 +151,17 @@ def load_oofp(X, y):
 def predict(ensemble):
     """予測。"""
     X, d = data.load_test_data()
-    mf_list = bin.predict(ensemble)
     pred_list = []
-    for mf in mf_list:
-        X = [X, d, mf]
-        for cv_index in range(CV_COUNT):
-            network = tk.dl.models.load_model(MODELS_DIR / f'model.fold{cv_index}.h5', compile=False, custom_objects={'X_mean': X_mean})
-            gen = tk.image.generator.Generator(multiple_input=True)
-            gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
-            gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
-            model = tk.dl.models.Model(network, gen, batch_size=32)
-            pred = model.predict(X, verbose=1)
-            pred_list.append(pred)
-            if not ensemble:
-                break
+    for cv_index in range(CV_COUNT):
+        network = tk.dl.models.load_model(MODELS_DIR / f'model.fold{cv_index}.h5', compile=False, custom_objects={'X_mean': X_mean})
+        gen = tk.image.generator.Generator(multiple_input=True)
+        gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
+        gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
+        model = tk.dl.models.Model(network, gen, batch_size=32)
+        pred = model.predict([X, d], verbose=1)
+        pred_list.append(pred)
+        if not ensemble:
+            break
     return pred_list
 
 
