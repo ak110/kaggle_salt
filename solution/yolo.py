@@ -14,6 +14,8 @@ REPORTS_DIR = pathlib.Path('reports')
 SPLIT_SEED = int(MODEL_NAME.encode('utf-8').hex(), 16) % 10000000
 CV_COUNT = 5
 INPUT_SIZE = (256, 256)
+BATCH_SIZE = 16
+EPOCHS = 300
 
 
 def _main():
@@ -21,9 +23,6 @@ def _main():
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', choices=('check', 'train', 'validate', 'predict'))
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
-    parser.add_argument('--batch-size', default=16, type=int)
-    parser.add_argument('--epochs', default=300, type=int)
-    parser.add_argument('--ensemble', action='store_true', help='予測時にアンサンブルを行うのか否か。')
     args = parser.parse_args()
     if args.mode == 'check':
         _create_network()[0].summary()
@@ -61,13 +60,13 @@ def _train(args):
     gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
     gen.add(tk.generator.ProcessOutput(lambda y: tk.ndimage.resize(y, 101, 101)))
 
-    model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
+    model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
     model.compile(sgd_lr=0.5 / 256, loss='binary_crossentropy', metrics=[tk.dl.metrics.binary_accuracy], lr_multipliers=lr_multipliers)
     model.summary()
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
-        epochs=args.epochs,
+        epochs=EPOCHS,
         tsv_log_path=MODELS_DIR / f'history.fold{args.cv_index}.tsv',
         cosine_annealing=True, mixup=True)
     model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5')
@@ -174,7 +173,7 @@ def _predict(args):
     logger = tk.log.get(__name__)
     threshold = float((MODELS_DIR / 'threshold.txt').read_text())
     logger.info(f'threshold = {threshold:.3f}')
-    pred_list = predict(ensemble=args.ensemble)
+    pred_list = predict(ensemble=False)
     pred = np.sum([p > threshold for p in pred_list], axis=0) > len(pred_list) / 2  # hard voting
     data.save_submission(MODELS_DIR / 'submission.csv', pred)
 

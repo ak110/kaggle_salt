@@ -15,6 +15,8 @@ REPORTS_DIR = pathlib.Path('reports')
 SPLIT_SEED = int(MODEL_NAME.encode('utf-8').hex(), 16) % 10000000
 CV_COUNT = 5
 INPUT_SIZE = (256, 256)
+BATCH_SIZE = 16
+EPOCHS = 100
 
 
 def _main():
@@ -22,9 +24,6 @@ def _main():
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', choices=('check', 'train', 'validate', 'predict'))
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
-    parser.add_argument('--batch-size', default=16, type=int)
-    parser.add_argument('--epochs', default=100, type=int)
-    parser.add_argument('--ensemble', action='store_true', help='予測時にアンサンブルを行うのか否か。')
     args = parser.parse_args()
     if args.mode == 'check':
         _create_network().summary()
@@ -58,13 +57,13 @@ def _train(args):
     gen.add(tk.image.RandomRotate(probability=0.25), input_index=0)
     gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
 
-    model = tk.dl.models.Model(network, gen, batch_size=args.batch_size)
+    model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
     model.compile(sgd_lr=0.1 / 128, loss='binary_crossentropy', metrics=[tk.dl.metrics.binary_accuracy])
     model.summary()
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
-        epochs=args.epochs,
+        epochs=EPOCHS,
         tsv_log_path=MODELS_DIR / f'history.fold{args.cv_index}.tsv',
         cosine_annealing=True, mixup=True)
     model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5')
