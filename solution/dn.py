@@ -30,7 +30,7 @@ def _main():
     elif args.mode == 'train':
         with tk.dl.session(use_horovod=True):
             tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
-            _train_impl(args)
+            _train(args)
     elif args.mode == 'validate':
         tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt')
         _report_impl()
@@ -41,7 +41,7 @@ def _main():
 
 
 @tk.log.trace()
-def _train_impl(args):
+def _train(args):
     logger = tk.log.get(__name__)
     logger.info(f'args: {args}')
     X, d, y = data.load_train_data()
