@@ -6,7 +6,7 @@ if [ ! -e $PYFILE ] ; then echo "Error: $PYFILE is not found!" 2>&1 ; exit 1 ; f
 
 GPUS=$(nvidia-smi --list-gpus | wc -l)
 
-rm -rf models/model_${1} reports/model_${1}.txt || true
+rm -rf models/${1} reports/${1}.txt || true
 
 mpirun -np $GPUS python3 $PYFILE train --cv-index=0
 mpirun -np $GPUS python3 $PYFILE train --cv-index=1
