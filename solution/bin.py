@@ -12,7 +12,6 @@ from lib import data
 MODEL_NAME = pathlib.Path(__file__).stem
 MODELS_DIR = pathlib.Path(f'models/{MODEL_NAME}')
 REPORTS_DIR = pathlib.Path('reports')
-SPLIT_SEED = int(MODEL_NAME.encode('utf-8').hex(), 16) % 10000000
 CV_COUNT = 5
 INPUT_SIZE = (256, 256)
 BATCH_SIZE = 16
@@ -42,9 +41,14 @@ def _main():
 def _train(args):
     logger = tk.log.get(__name__)
     logger.info(f'args: {args}')
+
+    split_seed = int(MODEL_NAME.encode('utf-8').hex(), 16) % 10000000
+    MODELS_DIR.mkdir(parents=True, exist_ok=True)
+    (MODELS_DIR / 'split_seed.txt').write_text(str(split_seed))
+
     X, d, y = data.load_train_data()
     y = np.max(data.load_mask(y) > 0.5, axis=(1, 2, 3)).astype(np.uint8)  # 0 or 1
-    ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=SPLIT_SEED, stratify=False)
+    ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)
     (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti]], y[ti]), ([X[vi], d[vi]], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
 
@@ -102,9 +106,10 @@ def _create_network():
 @tk.log.trace()
 def load_oofp(X, y):
     """out-of-fold predictionを読み込んで返す。"""
+    split_seed = int((MODELS_DIR / 'split_seed.txt').read_text())
     pred = np.empty((len(y), 1), dtype=np.float32)
     for cv_index in range(CV_COUNT):
-        _, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=cv_index, split_seed=SPLIT_SEED, stratify=False)
+        _, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=cv_index, split_seed=split_seed, stratify=False)
         pred[vi] = joblib.load(MODELS_DIR / f'pred-val.fold{cv_index}.pkl')
     return pred
 
