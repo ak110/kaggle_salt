@@ -26,7 +26,7 @@ def _main():
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
     args = parser.parse_args()
     if args.mode == 'check':
-        _create_network().summary()
+        _create_network()[0].summary()
     elif args.mode == 'train':
         with tk.dl.session(use_horovod=True):
             tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
@@ -48,7 +48,7 @@ def _train(args):
     (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti]], y[ti]), ([X[vi], d[vi]], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
 
-    network = _create_network()
+    network, _ = _create_network()
 
     gen = tk.image.generator.Generator(multiple_input=True)
     gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
@@ -96,7 +96,7 @@ def _create_network():
                            kernel_initializer='he_uniform',
                            kernel_regularizer=keras.regularizers.l2(1e-4))(x)
     network = keras.models.Model(inputs, x)
-    return network
+    return network, None
 
 
 @tk.log.trace()
