@@ -19,9 +19,9 @@ def log_evaluation(y_val, pred_val, print_fn=None):
         score_list.append(score)
     best_index = np.argmax(score_list)
     print_fn(f'max score: {score_list[best_index]:.3f} (threshold: {threshold_list[best_index]:.3f})')
-    print_fn('scores:')
-    for th, score in zip(threshold_list, score_list):
-        print_fn(f'  threshold={th:.3f}: score={score:.3f}')
+    # print_fn('scores:')
+    # for th, score in zip(threshold_list, score_list):
+    #     print_fn(f'  threshold={th:.3f}: score={score:.3f}')
     threshold = threshold_list[best_index]
 
     # オレオレ指標
