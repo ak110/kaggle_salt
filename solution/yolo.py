@@ -11,6 +11,7 @@ from lib import data, evaluation
 MODEL_NAME = pathlib.Path(__file__).stem
 MODELS_DIR = pathlib.Path(f'models/{MODEL_NAME}')
 REPORTS_DIR = pathlib.Path('reports')
+CACHE_DIR = pathlib.Path('cache')
 CV_COUNT = 5
 INPUT_SIZE = (128, 128)
 BATCH_SIZE = 16
@@ -33,9 +34,8 @@ def _main():
         tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt')
         _validate()
     else:
-        assert args.mode == 'predict'
         tk.log.init(MODELS_DIR / 'predict.log')
-        _predict(args)
+        _predict()
 
 
 @tk.log.trace()
@@ -76,9 +76,7 @@ def _train(args):
     model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5')
 
     if tk.dl.hvd.is_master():
-        pred_val = model.predict(X_val)
-        joblib.dump(pred_val, MODELS_DIR / f'pred-val.fold{args.cv_index}.pkl')
-        evaluation.log_evaluation(y_val, pred_val)
+        evaluation.log_evaluation(y_val, model.predict(X_val))
 
 
 def _create_network():
@@ -135,54 +133,69 @@ def _create_network():
 
 
 @tk.log.trace()
-def load_oofp(X, y):
-    """out-of-fold predictionを読み込んで返す。"""
-    split_seed = int((MODELS_DIR / 'split_seed.txt').read_text())
-    pred = np.empty((len(y), 101, 101, 1), dtype=np.float32)
-    for cv_index in range(CV_COUNT):
-        _, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=cv_index, split_seed=split_seed, stratify=False)
-        pred[vi] = joblib.load(MODELS_DIR / f'pred-val.fold{cv_index}.pkl')
-    return pred
-
-
-@tk.log.trace()
-def predict(ensemble):
-    """予測。"""
-    X, d = data.load_test_data()
-    pred_list = []
-    for cv_index in range(CV_COUNT):
-        network = tk.dl.models.load_model(MODELS_DIR / f'model.fold{cv_index}.h5', compile=False)
-        gen = tk.image.generator.Generator(multiple_input=True)
-        gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
-        gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
-        model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
-        pred = model.predict([X, d], verbose=1)
-        pred_list.append(pred)
-        if not ensemble:
-            break
-    return pred_list
-
-
-@tk.log.trace()
 def _validate():
     """検証＆閾値決定。"""
     logger = tk.log.get(__name__)
-    X, _, y = data.load_train_data()
+    _, _, y = data.load_train_data()
     y = data.load_mask(y)
-    pred = load_oofp(X, y)
+    pred = predict_all('val')
     threshold = evaluation.log_evaluation(y, pred, print_fn=logger.info)
     (MODELS_DIR / 'threshold.txt').write_text(str(threshold))
 
 
 @tk.log.trace()
-def _predict(args):
+def _predict():
     """予測。"""
     logger = tk.log.get(__name__)
     threshold = float((MODELS_DIR / 'threshold.txt').read_text())
     logger.info(f'threshold = {threshold:.3f}')
-    pred_list = predict(ensemble=False)
+    pred_list = predict_all('test')
     pred = np.sum([p > threshold for p in pred_list], axis=0) > len(pred_list) / 2  # hard voting
     data.save_submission(MODELS_DIR / 'submission.csv', pred)
+
+
+def predict_all(data_name):
+    """予測。"""
+    cache_path = CACHE_DIR / data_name / f'{MODEL_NAME}.pkl'
+    if cache_path.is_file():
+        return joblib.load(cache_path)
+
+    if data_name == 'val':
+        X_val, d_val, _ = data.load_train_data()
+        X_list, vi_list = [], []
+        split_seed = int((MODELS_DIR / 'split_seed.txt').read_text())
+        for cv_index in range(CV_COUNT):
+            _, vi = tk.ml.cv_indices(X_val, None, cv_count=CV_COUNT, cv_index=cv_index, split_seed=split_seed, stratify=False)
+            X_list.append([X_val[vi], d_val[vi]])
+    else:
+        X_test, d_test = data.load_test_data()
+        X_list = [[X_test, d_test]] * CV_COUNT
+
+    pred_list = []
+    for cv_index in tk.tqdm(range(CV_COUNT), desc='predict'):
+        if cv_index == 0:
+            gen = tk.image.generator.Generator(multiple_input=True)
+            gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
+            gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
+            model = tk.dl.models.Model.load(MODELS_DIR / f'model.fold{cv_index}.h5', gen, batch_size=BATCH_SIZE, multi_gpu=True)
+        else:
+            model.load_weights(MODELS_DIR / f'model.fold{cv_index}.h5')
+
+        X, d = X_list[cv_index]
+        pred1 = model.predict([X, d], verbose=0)
+        pred2 = model.predict([X[:, :, ::-1, :], d], verbose=0)[:, :, ::-1, :]
+        pred = (pred1 + pred2) / 2
+        pred_list.append(pred)
+
+    if data_name == 'val':
+        pred = np.empty((len(X_val), 101, 101, 1), dtype=np.float32)
+        for vi, p in zip(vi_list, pred_list):
+            pred[vi] = p
+    else:
+        pred = pred_list
+
+    joblib.dump(pred, cache_path)
+    return pred
 
 
 if __name__ == '__main__':
