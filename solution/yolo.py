@@ -13,7 +13,7 @@ MODELS_DIR = pathlib.Path(f'models/{MODEL_NAME}')
 REPORTS_DIR = pathlib.Path('reports')
 SPLIT_SEED = int(MODEL_NAME.encode('utf-8').hex(), 16) % 10000000
 CV_COUNT = 5
-INPUT_SIZE = (256, 256)
+INPUT_SIZE = (128, 128)
 BATCH_SIZE = 16
 EPOCHS = 300
 
@@ -93,12 +93,12 @@ def _create_network():
     tk.dl.models.load_weights(base_network, 'yolov3.h5')
     lr_multipliers = {l: 0.1 for l in base_network.layers}
     down_list = []
-    down_list.append(x_in)  # stage 0: 256
-    down_list.append(base_network.get_layer(name='add_1').output)  # stage 1: 128
-    down_list.append(base_network.get_layer(name='add_3').output)  # stage 2: 64
-    down_list.append(base_network.get_layer(name='add_11').output)  # stage 3: 32
-    down_list.append(base_network.get_layer(name='add_19').output)  # stage 4: 16
-    down_list.append(base_network.get_layer(name='add_23').output)  # stage 5: 8
+    down_list.append(x_in)  # stage 0: 128
+    down_list.append(base_network.get_layer(name='add_1').output)  # stage 1: 64
+    down_list.append(base_network.get_layer(name='add_3').output)  # stage 2: 32
+    down_list.append(base_network.get_layer(name='add_11').output)  # stage 3: 16
+    down_list.append(base_network.get_layer(name='add_19').output)  # stage 4: 8
+    down_list.append(base_network.get_layer(name='add_23').output)  # stage 5: 4
 
 
     x = base_network.outputs[0]
@@ -109,7 +109,7 @@ def _create_network():
     x = builder.dense(256)(x)
     x = builder.act()(x)
     x = keras.layers.Reshape((1, 1, -1))(x)
-    x = builder.conv2dtr(256, 4, strides=4)(x)
+    x = builder.conv2dtr(256, 2, strides=2)(x)
 
     for stage, (d, filters) in list(enumerate(zip(down_list, [16, 32, 64, 128, 256, 512])))[::-1]:
         x = tk.dl.layers.subpixel_conv2d()(scale=2)(x)
