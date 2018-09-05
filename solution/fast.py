@@ -149,7 +149,7 @@ def predict(ensemble):
         gen = tk.image.generator.Generator(multiple_input=True)
         gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
         gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
-        model = tk.dl.models.Model(network, gen, batch_size=32)
+        model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
         pred = model.predict([X, d], verbose=1)
         pred_list.append(pred)
         if not ensemble:

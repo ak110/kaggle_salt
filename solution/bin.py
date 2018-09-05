@@ -113,15 +113,15 @@ def load_oofp(X, y):
 def predict(ensemble):
     """予測。"""
     X, d = data.load_test_data()
-    X = [X, d]
     pred_list = []
     for cv_index in range(CV_COUNT):
         network = tk.dl.models.load_model(MODELS_DIR / f'model.fold{cv_index}.h5', compile=False)
         gen = tk.image.generator.Generator(multiple_input=True)
         gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
-        gen.add(tk.image.Resize((256, 256)), input_index=0)
-        model = tk.dl.models.Model(network, gen, batch_size=16)
-        pred_list.append(model.predict(X, verbose=1))
+        gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
+        model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
+        pred = model.predict([X, d], verbose=1)
+        pred_list.append(pred)
         if not ensemble:
             break
     return pred_list
