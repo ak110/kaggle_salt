@@ -1,11 +1,8 @@
-[DEBUG] _validate 開始 <pytoolkit.pytoolkit.log:log.py:101>
-[DEBUG] load_oofp 開始 <pytoolkit.pytoolkit.log:log.py:101>
-[DEBUG] load_oofp 終了 (0.134[s]) <pytoolkit.pytoolkit.log:log.py:107>
+[INFO ] gpu count = 4 <pytoolkit.pytoolkit.dl.models:models.py:252>
 [INFO ] Accuracy: 0.959 <__main__:ml.py:670>
 [INFO ] F1-score: 0.916 <__main__:ml.py:671>
-[INFO ] AUC:      0.980 <__main__:ml.py:672>
-[INFO ] Logloss:  0.126 <__main__:ml.py:673>
-[INFO ] max score: 0.801 (threshold: 0.563) <__main__:evaluation.py:21>
-[INFO ] IoU mean:  0.775 <__main__:evaluation.py:59>
-[INFO ] Acc empty: 0.924 <__main__:evaluation.py:64>
-[DEBUG] _validate 終了 (82.199[s]) <pytoolkit.pytoolkit.log:log.py:107>
+[INFO ] AUC:      0.982 <__main__:ml.py:672>
+[INFO ] Logloss:  0.123 <__main__:ml.py:673>
+[INFO ] max score: 0.808 (threshold: 0.521) <__main__:evaluation.py:21>
+[INFO ] IoU mean:  0.779 <__main__:evaluation.py:59>
+[INFO ] Acc empty: 0.930 <__main__:evaluation.py:64>

@@ -31,7 +31,7 @@ def _main():
             tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
             _train(args)
     elif args.mode == 'validate':
-        tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt')
+        tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt', file_level='INFO')
         _validate()
     else:
         tk.log.init(MODELS_DIR / 'predict.log')

@@ -32,7 +32,7 @@ def _main():
             tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
             _train(args)
     elif args.mode == 'validate':
-        tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt')
+        tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt', file_level='INFO')
         _validate()
     else:
         assert args.mode == 'predict'  # このモデルは単体では予測できないので処理無し。
@@ -148,7 +148,7 @@ def predict_all(data_name):
 
         X, d = X_list[cv_index]
         pred1 = model.predict([X, d], verbose=0)
-        pred2 = model.predict([X[:, :, ::-1, :], d], verbose=0)[:, :, ::-1, :]
+        pred2 = model.predict([X[:, :, ::-1, :], d], verbose=0)
         pred = np.mean([pred1, pred2], axis=0)
         pred_list.append(pred)
 

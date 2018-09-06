@@ -1,8 +1,5 @@
-[DEBUG] _validate 開始 <pytoolkit.pytoolkit.log:log.py:101>
-[DEBUG] load_oofp 開始 <pytoolkit.pytoolkit.log:log.py:101>
-[DEBUG] load_oofp 終了 (0.097[s]) <pytoolkit.pytoolkit.log:log.py:107>
-[INFO ] Accuracy: 0.928 <__main__:ml.py:670>
-[INFO ] F1-score: 0.941 <__main__:ml.py:671>
-[INFO ] AUC:      0.972 <__main__:ml.py:672>
-[INFO ] Logloss:  0.214 <__main__:ml.py:673>
-[DEBUG] _validate 終了 (11.876[s]) <pytoolkit.pytoolkit.log:log.py:107>
+[INFO ] gpu count = 4 <pytoolkit.pytoolkit.dl.models:models.py:252>
+[INFO ] Accuracy: 0.933 <__main__:ml.py:670>
+[INFO ] F1-score: 0.945 <__main__:ml.py:671>
+[INFO ] AUC:      0.974 <__main__:ml.py:672>
+[INFO ] Logloss:  0.202 <__main__:ml.py:673>
