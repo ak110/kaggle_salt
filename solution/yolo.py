@@ -162,29 +162,32 @@ def predict_all(data_name):
 
     if data_name == 'val':
         X_val, d_val, _ = data.load_train_data()
+        X_val = np.array([tk.ndimage.load(x, grayscale=True) for x in tk.tqdm(X_val, desc='load')])
         X_list, vi_list = [], []
         split_seed = int((MODELS_DIR / 'split_seed.txt').read_text())
         for cv_index in range(CV_COUNT):
             _, vi = tk.ml.cv_indices(X_val, None, cv_count=CV_COUNT, cv_index=cv_index, split_seed=split_seed, stratify=False)
             X_list.append([X_val[vi], d_val[vi]])
+            vi_list.append(vi)
     else:
         X_test, d_test = data.load_test_data()
+        X_test = np.array([tk.ndimage.load(x, grayscale=True) for x in tk.tqdm(X_test, desc='load')])
         X_list = [[X_test, d_test]] * CV_COUNT
+
+    gen = tk.image.generator.Generator(multiple_input=True)
+    gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
+    gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
+    model = tk.dl.models.Model.load(MODELS_DIR / f'model.fold0.h5', gen, batch_size=BATCH_SIZE, multi_gpu=True)
 
     pred_list = []
     for cv_index in tk.tqdm(range(CV_COUNT), desc='predict'):
-        if cv_index == 0:
-            gen = tk.image.generator.Generator(multiple_input=True)
-            gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
-            gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
-            model = tk.dl.models.Model.load(MODELS_DIR / f'model.fold{cv_index}.h5', gen, batch_size=BATCH_SIZE, multi_gpu=True)
-        else:
+        if cv_index != 0:
             model.load_weights(MODELS_DIR / f'model.fold{cv_index}.h5')
 
         X, d = X_list[cv_index]
         pred1 = model.predict([X, d], verbose=0)
         pred2 = model.predict([X[:, :, ::-1, :], d], verbose=0)[:, :, ::-1, :]
-        pred = (pred1 + pred2) / 2
+        pred = np.mean([pred1, pred2], axis=0)
         pred_list.append(pred)
 
     if data_name == 'val':
@@ -194,6 +197,7 @@ def predict_all(data_name):
     else:
         pred = pred_list
 
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(pred, cache_path)
     return pred
 

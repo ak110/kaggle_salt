@@ -1,6 +1,7 @@
 input/*/
 input/*.zip
 input/*.csv
+solution/cache/
 solution/models/
 solution/models_*/
 
