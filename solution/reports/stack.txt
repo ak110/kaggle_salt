@@ -1,0 +1,42 @@
+[DEBUG] _validate 開始 <pytoolkit.pytoolkit.log:log.py:101>
+[DEBUG] load_model 開始 <pytoolkit.pytoolkit.log:log.py:101>
+[DEBUG] load_model 終了 (6.061[s]) <pytoolkit.pytoolkit.log:log.py:107>
+[DEBUG] multi_gpu_model 開始 <pytoolkit.pytoolkit.log:log.py:101>
+[INFO ] gpu count = 4 <pytoolkit.pytoolkit.dl.models:models.py:252>
+[DEBUG] multi_gpu_model 終了 (1.275[s]) <pytoolkit.pytoolkit.log:log.py:107>
+[DEBUG] Model.predict 開始 <pytoolkit.pytoolkit.log:log.py:101>
+[DEBUG] Model.predict 終了 (5.686[s]) <pytoolkit.pytoolkit.log:log.py:107>
+[DEBUG] Model.predict 開始 <pytoolkit.pytoolkit.log:log.py:101>
+[DEBUG] Model.predict 終了 (0.523[s]) <pytoolkit.pytoolkit.log:log.py:107>
+[DEBUG] load_weights 開始 <pytoolkit.pytoolkit.log:log.py:101>
+[DEBUG] load_weights 終了 (0.156[s]) <pytoolkit.pytoolkit.log:log.py:107>
+[DEBUG] Model.predict 開始 <pytoolkit.pytoolkit.log:log.py:101>
+[DEBUG] Model.predict 終了 (0.526[s]) <pytoolkit.pytoolkit.log:log.py:107>
+[DEBUG] Model.predict 開始 <pytoolkit.pytoolkit.log:log.py:101>
+[DEBUG] Model.predict 終了 (0.579[s]) <pytoolkit.pytoolkit.log:log.py:107>
+[DEBUG] load_weights 開始 <pytoolkit.pytoolkit.log:log.py:101>
+[DEBUG] load_weights 終了 (0.056[s]) <pytoolkit.pytoolkit.log:log.py:107>
+[DEBUG] Model.predict 開始 <pytoolkit.pytoolkit.log:log.py:101>
+[DEBUG] Model.predict 終了 (0.522[s]) <pytoolkit.pytoolkit.log:log.py:107>
+[DEBUG] Model.predict 開始 <pytoolkit.pytoolkit.log:log.py:101>
+[DEBUG] Model.predict 終了 (0.526[s]) <pytoolkit.pytoolkit.log:log.py:107>
+[DEBUG] load_weights 開始 <pytoolkit.pytoolkit.log:log.py:101>
+[DEBUG] load_weights 終了 (0.059[s]) <pytoolkit.pytoolkit.log:log.py:107>
+[DEBUG] Model.predict 開始 <pytoolkit.pytoolkit.log:log.py:101>
+[DEBUG] Model.predict 終了 (0.536[s]) <pytoolkit.pytoolkit.log:log.py:107>
+[DEBUG] Model.predict 開始 <pytoolkit.pytoolkit.log:log.py:101>
+[DEBUG] Model.predict 終了 (0.524[s]) <pytoolkit.pytoolkit.log:log.py:107>
+[DEBUG] load_weights 開始 <pytoolkit.pytoolkit.log:log.py:101>
+[DEBUG] load_weights 終了 (0.046[s]) <pytoolkit.pytoolkit.log:log.py:107>
+[DEBUG] Model.predict 開始 <pytoolkit.pytoolkit.log:log.py:101>
+[DEBUG] Model.predict 終了 (0.621[s]) <pytoolkit.pytoolkit.log:log.py:107>
+[DEBUG] Model.predict 開始 <pytoolkit.pytoolkit.log:log.py:101>
+[DEBUG] Model.predict 終了 (0.525[s]) <pytoolkit.pytoolkit.log:log.py:107>
+[INFO ] Accuracy: 0.966 <__main__:ml.py:670>
+[INFO ] F1-score: 0.930 <__main__:ml.py:671>
+[INFO ] AUC:      0.987 <__main__:ml.py:672>
+[INFO ] Logloss:  0.105 <__main__:ml.py:673>
+[INFO ] max score: 0.829 (threshold: 0.479) <__main__:evaluation.py:21>
+[INFO ] IoU mean:  0.797 <__main__:evaluation.py:59>
+[INFO ] Acc empty: 0.949 <__main__:evaluation.py:64>
+[DEBUG] _validate 終了 (107.489[s]) <pytoolkit.pytoolkit.log:log.py:107>

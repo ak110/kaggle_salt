@@ -94,8 +94,8 @@ def _create_network(input_dims):
     x = inputs[0]
     x = builder.preprocess()(x)
     t = keras.layers.concatenate([
-        keras.layers.Reshape((101, 101, 1))(keras.layers.RepeatVector(101 * 101)(inputs[0])),
         keras.layers.Reshape((101, 101, 1))(keras.layers.RepeatVector(101 * 101)(inputs[1])),
+        keras.layers.Reshape((101, 101, 1))(keras.layers.RepeatVector(101 * 101)(inputs[2])),
     ])
     x = keras.layers.concatenate([x, t])
     x = builder.conv2d(128)(x)
