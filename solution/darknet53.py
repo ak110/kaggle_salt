@@ -48,7 +48,6 @@ def _train(args):
     (MODELS_DIR / 'split_seed.txt').write_text(str(split_seed))
 
     X, d, y = data.load_train_data()
-    y = data.load_mask(y)
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)
     (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti]], y[ti]), ([X[vi], d[vi]], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
@@ -135,7 +134,6 @@ def _validate():
     """検証＆閾値決定。"""
     logger = tk.log.get(__name__)
     _, _, y = data.load_train_data()
-    y = data.load_mask(y)
     pred = predict_all('val')
     threshold = evaluation.log_evaluation(y, pred, print_fn=logger.info)
     (MODELS_DIR / 'threshold.txt').write_text(str(threshold))
@@ -160,7 +158,6 @@ def predict_all(data_name):
 
     if data_name == 'val':
         X_val, d_val, _ = data.load_train_data()
-        X_val = np.array([tk.ndimage.load(x, grayscale=True) for x in tk.tqdm(X_val, desc='load')])
         X_list, vi_list = [], []
         split_seed = int((MODELS_DIR / 'split_seed.txt').read_text())
         for cv_index in range(CV_COUNT):
@@ -169,7 +166,6 @@ def predict_all(data_name):
             vi_list.append(vi)
     else:
         X_test, d_test = data.load_test_data()
-        X_test = np.array([tk.ndimage.load(x, grayscale=True) for x in tk.tqdm(X_test, desc='load')])
         X_list = [[X_test, d_test]] * CV_COUNT
 
     gen = tk.image.generator.Generator(multiple_input=True)

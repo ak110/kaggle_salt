@@ -13,19 +13,22 @@ TEST_IMAGE_DIR = pathlib.Path('../input/test/images')
 TRAIN_PATH = pathlib.Path('../input/train.csv')
 TEST_PATH = pathlib.Path('../input/sample_submission.csv')
 DEPTHS_PATH = pathlib.Path('../input/depths.csv')
+CACHE_DIR = pathlib.Path('cache')
 
 
+@tk.cache.memorize(CACHE_DIR)
 def load_train_data():
     id_list = pd.read_csv(TRAIN_PATH)['id'].values
-    X = np.array([TRAIN_IMAGE_DIR / (id_ + '.png') for id_ in id_list])
+    X = _load_image(np.array([TRAIN_IMAGE_DIR / (id_ + '.png') for id_ in id_list]))
     d = _load_depths(id_list)
-    y = np.array([TRAIN_MASK_DIR / (id_ + '.png') for id_ in id_list])
+    y = _load_image(np.array([TRAIN_MASK_DIR / (id_ + '.png') for id_ in id_list]))
     return X, d, y
 
 
+@tk.cache.memorize(CACHE_DIR)
 def load_test_data():
     id_list = pd.read_csv(TEST_PATH)['id'].values
-    X = np.array([TEST_IMAGE_DIR / (id_ + '.png') for id_ in id_list])
+    X = _load_image(np.array([TEST_IMAGE_DIR / (id_ + '.png') for id_ in id_list]))
     d = _load_depths(id_list)
     return X, d
 
@@ -39,10 +42,10 @@ def _load_depths(id_list):
     return d
 
 
-def load_mask(y):
-    y = np.array([cv2.imread(str(p), cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255 for p in tk.tqdm(y, desc='load_mask')])
-    y = np.expand_dims(y, axis=-1)
-    return y
+def _load_image(X):
+    X = np.array([cv2.imread(str(p), cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255 for p in tk.tqdm(X, desc='load')])
+    X = np.expand_dims(X, axis=-1)
+    return X
 
 
 def save_submission(save_path, pred):
