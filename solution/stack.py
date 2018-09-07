@@ -31,7 +31,7 @@ def _main():
             tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
             _train(args)
     elif args.mode == 'validate':
-        tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt')
+        tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt', file_level='INFO')
         _validate()
     else:
         tk.log.init(MODELS_DIR / 'predict.log')
@@ -185,22 +185,14 @@ def _get_meta_features(X, data_name):
     import darknet53
     import darknet53_128
     import darknet53_nr
-    import fast
     import nasnet
-    import resnet
-    import vgg
-    import yolo
     X_bin = bin_model.predict_all(data_name)
     X = np.concatenate([
         X,
         darknet53.predict_all(data_name),
         darknet53_128.predict_all(data_name),
         darknet53_nr.predict_all(data_name),
-        fast.predict_all(data_name),
         nasnet.predict_all(data_name),
-        resnet.predict_all(data_name),
-        vgg.predict_all(data_name),
-        yolo.predict_all(data_name),
     ], axis=-1)
     return X, X_bin
 
