@@ -56,7 +56,6 @@ def _train(args):
     network, _ = _create_network(input_dims=X.shape[-1])
 
     gen = tk.image.generator.Generator(multiple_input=True)
-    gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
     gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True), input_index=0)
     # gen.add(tk.image.Padding(probability=1, with_output=True), input_index=0)
     # gen.add(tk.image.RandomRotate(probability=0.25, with_output=True), input_index=0)
@@ -123,17 +122,13 @@ def _predict():
     threshold = float((MODELS_DIR / 'threshold.txt').read_text())
     logger.info(f'threshold = {threshold:.3f}')
     X_test, d_test = data.load_test_data()
-    pred_list = predict_all('test', X_test, d_test)
+    pred_list = sum([predict_all('test', X_test, d_test, chilld_cv_index) for chilld_cv_index in range(5)], [])
     pred = np.sum([p > threshold for p in pred_list], axis=0) > len(pred_list) / 2  # hard voting
     data.save_submission(MODELS_DIR / 'submission.csv', pred)
 
 
-def predict_all(data_name, X, d):
+def predict_all(data_name, X, d, chilld_cv_index=None):
     """予測。"""
-    cache_path = CACHE_DIR / data_name / f'{MODEL_NAME}.pkl'
-    if cache_path.is_file():
-        return joblib.load(cache_path)
-
     if data_name == 'val':
         X_val, bin_val = _get_meta_features(data_name, X, d)
         X_list, vi_list = [], []
@@ -143,14 +138,10 @@ def predict_all(data_name, X, d):
             X_list.append([X_val[vi], d[vi], bin_val[vi]])
             vi_list.append(vi)
     else:
-        X_list = []
-        for cv_index in range(CV_COUNT):
-            X_test, bin_test = _get_meta_features(data_name, X, d, cv_index)
-            X_list.append([X_test, d, bin_test])
+        X_test, bin_test = _get_meta_features(data_name, X, d, chilld_cv_index)
+        X_list = [[X_test, d, bin_test]] * CV_COUNT
 
     gen = tk.image.generator.Generator(multiple_input=True)
-    gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
-    gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
     model = tk.dl.models.Model.load(MODELS_DIR / f'model.fold0.h5', gen, batch_size=BATCH_SIZE, multi_gpu=True)
 
     pred_list = []
@@ -170,9 +161,6 @@ def predict_all(data_name, X, d):
             pred[vi] = p
     else:
         pred = pred_list
-
-    cache_path.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(pred, cache_path)
     return pred
 
 
