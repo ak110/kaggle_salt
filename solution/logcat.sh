@@ -7,4 +7,3 @@ for d in models/* ; do
         if [ -f reports/$(basename $d).txt ] ; then grep --with-filename 'max score:' reports/$(basename $d).txt ; fi
     fi
 done
-

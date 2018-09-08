@@ -13,7 +13,7 @@ MODELS_DIR = pathlib.Path(f'models/{MODEL_NAME}')
 REPORTS_DIR = pathlib.Path('reports')
 CACHE_DIR = pathlib.Path('cache')
 CV_COUNT = 5
-INPUT_SIZE = (256, 256)
+INPUT_SIZE = (101, 101)
 BATCH_SIZE = 16
 EPOCHS = 300
 
@@ -88,25 +88,21 @@ def _create_network():
         builder.input_tensor((1,)),  # depths
     ]
     x = inputs[0]
+    x = builder.preprocess(mode='div255')(x)
+    x = keras.layers.UpSampling2D()(x)  # 202
+    x = x_in = tk.dl.layers.pad2d()(((27, 27), (27, 27)), mode='reflect')(x)
     x = keras.layers.concatenate([x, x, x])
-    x = builder.preprocess(mode='caffe')(x)
-    base_network = keras.applications.VGG16(include_top=False, input_tensor=x)
+    base_network = tk.applications.darknet53.darknet53(include_top=False, input_tensor=x)
     lr_multipliers = {l: 0.1 for l in base_network.layers}
     down_list = []
-    down_list.append(base_network.get_layer(name='block1_pool').input)  # stage 0: 256
-    down_list.append(base_network.get_layer(name='block2_pool').input)  # stage 1: 128
-    down_list.append(base_network.get_layer(name='block3_pool').input)  # stage 2: 64
-    down_list.append(base_network.get_layer(name='block4_pool').input)  # stage 3: 32
-    down_list.append(base_network.get_layer(name='block5_pool').input)  # stage 4: 16
+    down_list.append(x_in)  # stage 0: 256
+    down_list.append(base_network.get_layer(name='add_1').output)  # stage 1: 128
+    down_list.append(base_network.get_layer(name='add_3').output)  # stage 2: 64
+    down_list.append(base_network.get_layer(name='add_11').output)  # stage 3: 32
+    down_list.append(base_network.get_layer(name='add_19').output)  # stage 4: 16
+    down_list.append(base_network.get_layer(name='add_23').output)  # stage 5: 8
 
     x = base_network.outputs[0]
-    x = builder.conv2d(256, 1, use_act=False)(x)
-    x = builder.res_block(256, dropout=0.25)(x)
-    x = builder.res_block(256, dropout=0.25)(x)
-    x = builder.res_block(256, dropout=0.25)(x)
-    x = builder.bn_act()(x)
-    down_list.append(x)  # stage 5: 8
-
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(64)(x)
     x = builder.act()(x)
@@ -125,11 +121,8 @@ def _create_network():
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.bn_act()(x)
-    x = tk.dl.layers.resize2d()((101, 101))(x)
-    x = builder.conv2d(64, use_act=False)(x)
-    x = builder.res_block(64, dropout=0.25)(x)
-    x = builder.res_block(64, dropout=0.25)(x)
-    x = builder.bn_act()(x)
+    x = keras.layers.Cropping2D(((27, 27), (27, 27)))(x)  # 202
+    x = builder.conv2d(64, 2, strides=2)(x)  # 101
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     network = keras.models.Model(inputs, x)
     return network, lr_multipliers
@@ -184,9 +177,9 @@ def predict_all(data_name, X, d):
         if cv_index != 0:
             model.load_weights(MODELS_DIR / f'model.fold{cv_index}.h5')
 
-        X, d = X_list[cv_index]
-        pred1 = model.predict([X, d], verbose=0)
-        pred2 = model.predict([X[:, :, ::-1, :], d], verbose=0)[:, :, ::-1, :]
+        X_t, d_t = X_list[cv_index]
+        pred1 = model.predict([X_t, d_t], verbose=0)
+        pred2 = model.predict([X_t[:, :, ::-1, :], d_t], verbose=0)[:, :, ::-1, :]
         pred = np.mean([pred1, pred2], axis=0)
         pred_list.append(pred)
 
