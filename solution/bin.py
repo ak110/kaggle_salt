@@ -25,17 +25,17 @@ def _main():
     parser.add_argument('mode', choices=('check', 'train', 'validate', 'predict'))
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
     args = parser.parse_args()
-    if args.mode == 'check':
-        _create_network()[0].summary()
-    elif args.mode == 'train':
-        with tk.dl.session(use_horovod=True):
+    with tk.dl.session(use_horovod=args.mode == 'train'):
+        if args.mode == 'check':
+            _create_network()[0].summary()
+        elif args.mode == 'train':
             tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
             _train(args)
-    elif args.mode == 'validate':
-        tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt', file_level='INFO')
-        _validate()
-    else:
-        assert args.mode == 'predict'  # このモデルは単体では予測できないので処理無し。
+        elif args.mode == 'validate':
+            tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt', file_level='INFO')
+            _validate()
+        else:
+            assert args.mode == 'predict'  # このモデルは単体では予測できないので処理無し。
 
 
 @tk.log.trace()
