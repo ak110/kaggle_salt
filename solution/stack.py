@@ -122,7 +122,7 @@ def _predict():
     threshold = float((MODELS_DIR / 'threshold.txt').read_text())
     logger.info(f'threshold = {threshold:.3f}')
     X_test, d_test = data.load_test_data()
-    pred_list = sum([predict_all('test', X_test, d_test, chilld_cv_index) for chilld_cv_index in range(5)], [])
+    pred_list = sum([predict_all('test', X_test, d_test, chilld_cv_index) for chilld_cv_index in tk.tqdm(range(5), desc='fold')], [])
     pred = np.sum([p > threshold for p in pred_list], axis=0) > len(pred_list) / 2  # hard voting
     data.save_submission(MODELS_DIR / 'submission.csv', pred)
 
@@ -186,7 +186,7 @@ def _get_meta_features(data_name, X, d, cv_index=None):
         _get(darknet53_nr.predict_all(data_name, X, d)),
         _get(nasnet.predict_all(data_name, X, d)),
     ], axis=-1)
-    X_bin = bin_model.predict_all(data_name, X, d)
+    X_bin = _get(bin_model.predict_all(data_name, X, d))
     return X, X_bin
 
 
