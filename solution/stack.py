@@ -48,7 +48,7 @@ def _train(args):
     (MODELS_DIR / 'split_seed.txt').write_text(str(split_seed))
 
     X, d, y = data.load_train_data()
-    X, X_bin = _get_meta_features(X, 'val')
+    X, X_bin = _get_meta_features('val', X, d)
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)
     (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti], X_bin[ti]], y[ti]), ([X[vi], d[vi], X_bin[vi]], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
@@ -109,8 +109,8 @@ def _create_network(input_dims):
 def _validate():
     """検証＆閾値決定。"""
     logger = tk.log.get(__name__)
-    _, _, y = data.load_train_data()
-    pred = predict_all('val')
+    X, d, y = data.load_train_data()
+    pred = predict_all('val', X, d)
     threshold = evaluation.log_evaluation(y, pred, print_fn=logger.info)
     (MODELS_DIR / 'threshold.txt').write_text(str(threshold))
 
@@ -121,30 +121,31 @@ def _predict():
     logger = tk.log.get(__name__)
     threshold = float((MODELS_DIR / 'threshold.txt').read_text())
     logger.info(f'threshold = {threshold:.3f}')
-    pred_list = predict_all('test')
+    X_test, d_test = data.load_test_data()
+    pred_list = predict_all('test', X_test, d_test)
     pred = np.sum([p > threshold for p in pred_list], axis=0) > len(pred_list) / 2  # hard voting
     data.save_submission(MODELS_DIR / 'submission.csv', pred)
 
 
-def predict_all(data_name):
+def predict_all(data_name, X, d):
     """予測。"""
     cache_path = CACHE_DIR / data_name / f'{MODEL_NAME}.pkl'
     if cache_path.is_file():
         return joblib.load(cache_path)
 
     if data_name == 'val':
-        X_val, d_val, _ = data.load_train_data()
-        X_val, X_bin = _get_meta_features(X_val, data_name)
+        X_val, bin_val = _get_meta_features(data_name, X, d)
         X_list, vi_list = [], []
         split_seed = int((MODELS_DIR / 'split_seed.txt').read_text())
         for cv_index in range(CV_COUNT):
             _, vi = tk.ml.cv_indices(X_val, None, cv_count=CV_COUNT, cv_index=cv_index, split_seed=split_seed, stratify=False)
-            X_list.append([X_val[vi], d_val[vi], X_bin[vi]])
+            X_list.append([X_val[vi], d_val[vi], bin_val[vi]])
             vi_list.append(vi)
     else:
-        X_test, d_test = data.load_test_data()
-        X_test, X_bin = _get_meta_features(X_test, data_name)
-        X_list = [[X_test, d_test, X_bin]] * CV_COUNT
+        X_list = []
+        for cv_index in range(CV_COUNT):
+            X_test, bin_test = _get_meta_features(data_name, X, d, cv_index)
+            X_list.append([X_test, d_test, bin_test])
 
     gen = tk.image.generator.Generator(multiple_input=True)
     gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
@@ -156,9 +157,9 @@ def predict_all(data_name):
         if cv_index != 0:
             model.load_weights(MODELS_DIR / f'model.fold{cv_index}.h5')
 
-        X, d, X_bin = X_list[cv_index]
-        pred1 = model.predict([X, d, X_bin], verbose=0)
-        pred2 = model.predict([X[:, :, ::-1, :], d, X_bin], verbose=0)[:, :, ::-1, :]
+        X_t, d_t, bin_t = X_list[cv_index]
+        pred1 = model.predict([X_t, d_t, bin_t], verbose=0)
+        pred2 = model.predict([X_t[:, :, ::-1, :], d_t, bin_t], verbose=0)[:, :, ::-1, :]
         pred = np.mean([pred1, pred2], axis=0)
         pred_list.append(pred)
 
@@ -174,21 +175,25 @@ def predict_all(data_name):
     return pred
 
 
-def _get_meta_features(X, data_name):
+def _get_meta_features(data_name, X, d, cv_index=None):
     """子モデルのout-of-fold predictionsを取得。"""
     import bin as bin_model
     import darknet53
     import darknet53_128
     import darknet53_nr
     import nasnet
-    X_bin = bin_model.predict_all(data_name)
+
+    def _get(m):
+        return m if data_name == 'val' else m[cv_index]
+
     X = np.concatenate([
         X,
-        darknet53.predict_all(data_name),
-        darknet53_128.predict_all(data_name),
-        darknet53_nr.predict_all(data_name),
-        nasnet.predict_all(data_name),
+        _get(darknet53.predict_all(data_name, X, d)),
+        _get(darknet53_128.predict_all(data_name, X, d)),
+        _get(darknet53_nr.predict_all(data_name, X, d)),
+        _get(nasnet.predict_all(data_name, X, d)),
     ], axis=-1)
+    X_bin = bin_model.predict_all(data_name, X, d)
     return X, X_bin
 
 

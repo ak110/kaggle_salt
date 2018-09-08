@@ -139,8 +139,8 @@ def _create_network():
 def _validate():
     """検証＆閾値決定。"""
     logger = tk.log.get(__name__)
-    _, _, y = data.load_train_data()
-    pred = predict_all('val')
+    X, d, y = data.load_train_data()
+    pred = predict_all('val', X, d)
     threshold = evaluation.log_evaluation(y, pred, print_fn=logger.info)
     (MODELS_DIR / 'threshold.txt').write_text(str(threshold))
 
@@ -151,28 +151,28 @@ def _predict():
     logger = tk.log.get(__name__)
     threshold = float((MODELS_DIR / 'threshold.txt').read_text())
     logger.info(f'threshold = {threshold:.3f}')
-    pred_list = predict_all('test')
+    X_test, d_test = data.load_test_data()
+    pred_list = predict_all('test', X_test, d_test)
     pred = np.sum([p > threshold for p in pred_list], axis=0) > len(pred_list) / 2  # hard voting
     data.save_submission(MODELS_DIR / 'submission.csv', pred)
 
 
-def predict_all(data_name):
+def predict_all(data_name, X, d):
     """予測。"""
     cache_path = CACHE_DIR / data_name / f'{MODEL_NAME}.pkl'
     if cache_path.is_file():
         return joblib.load(cache_path)
 
     if data_name == 'val':
-        X_val, d_val, _ = data.load_train_data()
         X_list, vi_list = [], []
         split_seed = int((MODELS_DIR / 'split_seed.txt').read_text())
         for cv_index in range(CV_COUNT):
-            _, vi = tk.ml.cv_indices(X_val, None, cv_count=CV_COUNT, cv_index=cv_index, split_seed=split_seed, stratify=False)
-            X_list.append([X_val[vi], d_val[vi]])
+            _, vi = tk.ml.cv_indices(X, None, cv_count=CV_COUNT, cv_index=cv_index, split_seed=split_seed, stratify=False)
+            X_list.append([X[vi], d[vi]])
             vi_list.append(vi)
     else:
-        X_test, d_test = data.load_test_data()
-        X_list = [[X_test, d_test]] * CV_COUNT
+        X, d = data.load_test_data()
+        X_list = [[X, d]] * CV_COUNT
 
     gen = tk.image.generator.Generator(multiple_input=True)
     gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
