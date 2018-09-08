@@ -14,7 +14,7 @@ REPORTS_DIR = pathlib.Path('reports')
 CACHE_DIR = pathlib.Path('cache')
 CV_COUNT = 5
 INPUT_SIZE = (101, 101)
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 EPOCHS = 300
 
 
@@ -26,7 +26,7 @@ def _main():
     args = parser.parse_args()
     with tk.dl.session(use_horovod=args.mode == 'train'):
         if args.mode == 'check':
-            _create_network()[0].summary()
+            _create_network(input_dims=3)[0].summary()
         elif args.mode == 'train':
             tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
             _train(args)
@@ -65,7 +65,7 @@ def _train(args):
 
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
     # model.compile(sgd_lr=0.1 / 128, loss='binary_crossentropy', metrics=[tk.dl.metrics.binary_accuracy])
-    model.compile(sgd_lr=0.1 / 128, loss=lovasz_hinge, metrics=[tk.dl.metrics.binary_accuracy])
+    model.compile(sgd_lr=1e-4, loss=lovasz_hinge, metrics=[tk.dl.metrics.binary_accuracy])
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
@@ -95,11 +95,13 @@ def _create_network(input_dims):
         keras.layers.Reshape((101, 101, 1))(keras.layers.RepeatVector(101 * 101)(inputs[2])),
     ])
     x = keras.layers.concatenate([x, t])
-    x = builder.conv2d(128)(x)
-    x = builder.se_block(128)(x)
-    x = builder.conv2d(128)(x)
-    x = builder.conv2d(128)(x)
+    x = tk.dl.layers.pad2d()(((13, 14), (13, 14)), mode='reflect')(x)
+    for _ in range(3):
+        x = builder.conv2d(128)(x)
+        x = builder.se_block(128)(x)
     x = builder.conv2d(1, use_bias=True, use_bn=False, name='prediction', activation='sigmoid')(x)
+    x = keras.layers.Cropping2D(((13, 14), (13, 14)))(x)
+
     network = keras.models.Model(inputs, x)
     return network, None
 
