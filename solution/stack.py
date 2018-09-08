@@ -73,12 +73,8 @@ def _train(args):
         X_train, y_train, validation_data=(X_val, y_val),
         epochs=EPOCHS,
         tsv_log_path=MODELS_DIR / f'history.fold{args.cv_index}.tsv',
-        cosine_annealing=True, mixup=True)
-    # predict時はsigmoidを使用 (邪悪なコード...)
-    import keras
-    model.get_layer(name='prediction').activation = keras.activations.get('sigmoid')
+        cosine_annealing=True)
     model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5')
-    model.get_layer(name='prediction').activation = keras.activations.get(None)
 
     if tk.dl.hvd.is_master():
         evaluation.log_evaluation(y_val, model.predict(X_val))
@@ -105,7 +101,7 @@ def _create_network(input_dims):
     x = builder.se_block(128)(x)
     x = builder.conv2d(128)(x)
     x = builder.conv2d(128)(x)
-    x = builder.conv2d(1, use_bias=True, use_bn=False, name='prediction')(x)  # , activation='sigmoid'
+    x = builder.conv2d(1, use_bias=True, use_bn=False, name='prediction', activation='sigmoid')(x)
     network = keras.models.Model(inputs, x)
     return network, None
 
@@ -204,8 +200,10 @@ def _get_meta_features(data_name, X, d, cv_index=None):
 
 def lovasz_hinge(y_true, y_pred):
     """Binary Lovasz hinge loss"""
+    import keras.backend as K
     from lovasz_softmax import lovasz_losses_tf
-    return lovasz_losses_tf.lovasz_hinge(y_pred, y_true)
+    logit = K.log(y_pred / (1 - y_pred + K.epsilon()))
+    return lovasz_losses_tf.lovasz_hinge(logit, y_true)
 
 
 if __name__ == '__main__':
