@@ -65,7 +65,8 @@ def _train(args):
     # gen.add(tk.generator.ProcessOutput(lambda y: tk.ndimage.resize(y, 101, 101)))
 
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
-    model.compile(sgd_lr=0.1 / 128, loss='binary_crossentropy', metrics=[tk.dl.metrics.binary_accuracy])
+    # model.compile(sgd_lr=0.1 / 128, loss='binary_crossentropy', metrics=[tk.dl.metrics.binary_accuracy])
+    model.compile(sgd_lr=0.1 / 128, loss=lovasz_hinge, metrics=[tk.dl.metrics.binary_accuracy])
     model.summary()
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
@@ -73,7 +74,11 @@ def _train(args):
         epochs=EPOCHS,
         tsv_log_path=MODELS_DIR / f'history.fold{args.cv_index}.tsv',
         cosine_annealing=True, mixup=True)
+    # predict時はsigmoidを使用 (邪悪なコード...)
+    import keras
+    model.get_layer(name='prediction').activation = keras.activations.get('sigmoid')
     model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5')
+    model.get_layer(name='prediction').activation = keras.activations.get(None)
 
     if tk.dl.hvd.is_master():
         evaluation.log_evaluation(y_val, model.predict(X_val))
@@ -100,7 +105,7 @@ def _create_network(input_dims):
     x = builder.se_block(128)(x)
     x = builder.conv2d(128)(x)
     x = builder.conv2d(128)(x)
-    x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
+    x = builder.conv2d(1, use_bias=True, use_bn=False, name='prediction')(x)  # , activation='sigmoid'
     network = keras.models.Model(inputs, x)
     return network, None
 
@@ -139,13 +144,13 @@ def predict_all(data_name, X, d):
         split_seed = int((MODELS_DIR / 'split_seed.txt').read_text())
         for cv_index in range(CV_COUNT):
             _, vi = tk.ml.cv_indices(X_val, None, cv_count=CV_COUNT, cv_index=cv_index, split_seed=split_seed, stratify=False)
-            X_list.append([X_val[vi], d_val[vi], bin_val[vi]])
+            X_list.append([X_val[vi], d[vi], bin_val[vi]])
             vi_list.append(vi)
     else:
         X_list = []
         for cv_index in range(CV_COUNT):
             X_test, bin_test = _get_meta_features(data_name, X, d, cv_index)
-            X_list.append([X_test, d_test, bin_test])
+            X_list.append([X_test, d, bin_test])
 
     gen = tk.image.generator.Generator(multiple_input=True)
     gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
@@ -195,6 +200,12 @@ def _get_meta_features(data_name, X, d, cv_index=None):
     ], axis=-1)
     X_bin = bin_model.predict_all(data_name, X, d)
     return X, X_bin
+
+
+def lovasz_hinge(y_true, y_pred):
+    """Binary Lovasz hinge loss"""
+    from lovasz_softmax import lovasz_losses_tf
+    return lovasz_losses_tf.lovasz_hinge(y_pred, y_true)
 
 
 if __name__ == '__main__':
