@@ -173,7 +173,11 @@ def _get_meta_features(data_name, X, d, cv_index=None):
     import nasnet
 
     def _get(m):
-        return m if data_name == 'val' else m[cv_index]
+        if data_name == 'val':
+            return m
+        else:
+            assert len(m) == 5
+            return m[cv_index]
 
     X = np.concatenate([
         X,
