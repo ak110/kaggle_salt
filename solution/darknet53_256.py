@@ -54,7 +54,7 @@ def _train(args):
 
     network, lr_multipliers = _create_network()
 
-    gen = tk.image.generator.Generator(multiple_input=True)
+    gen = tk.generator.Generator(multiple_input=True)
     gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
     gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True), input_index=0)
     gen.add(tk.image.Padding(probability=1, with_output=True), input_index=0)
@@ -167,7 +167,7 @@ def predict_all(data_name, X, d):
         X, d = data.load_test_data()
         X_list = [[X, d]] * CV_COUNT
 
-    gen = tk.image.generator.Generator(multiple_input=True)
+    gen = tk.generator.Generator(multiple_input=True)
     gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
     gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
     model = tk.dl.models.Model.load(MODELS_DIR / f'model.fold0.h5', gen, batch_size=BATCH_SIZE, multi_gpu=True)
