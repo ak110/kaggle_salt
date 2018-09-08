@@ -141,7 +141,7 @@ def predict_all(data_name, X, d, chilld_cv_index=None):
         X_test, bin_test = _get_meta_features(data_name, X, d, chilld_cv_index)
         X_list = [[X_test, d, bin_test]] * CV_COUNT
 
-    gen = tk.generator.Generator(multiple_input=True)
+    gen = tk.generator.SimpleGenerator()
     model = tk.dl.models.Model.load(MODELS_DIR / f'model.fold0.h5', gen, batch_size=BATCH_SIZE, multi_gpu=True)
 
     pred_list = []
