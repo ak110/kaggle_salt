@@ -16,6 +16,4 @@ mpirun -np $GPUS python3 $PYFILE train --cv-index=4
 
 python3 $PYFILE validate
 
-if [ "${1}" == "stack" ] ; then
-    python3 $PYFILE predict
-fi
+python3 $PYFILE predict
