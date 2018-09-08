@@ -43,6 +43,9 @@ def _train(args):
     logger = tk.log.get(__name__)
     logger.info(f'args: {args}')
 
+    tk.io.delete_file(CACHE_DIR / 'val' / f'{MODEL_NAME}.pkl')
+    tk.io.delete_file(CACHE_DIR / 'test' / f'{MODEL_NAME}.pkl')
+
     split_seed = int(MODEL_NAME.encode('utf-8').hex(), 16) % 10000000
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     (MODELS_DIR / 'split_seed.txt').write_text(str(split_seed))
@@ -190,7 +193,7 @@ def predict_all(data_name, X, d):
         pred_list.append(pred)
 
     if data_name == 'val':
-        pred = np.empty((len(X_val), 101, 101, 1), dtype=np.float32)
+        pred = np.empty((len(X), 101, 101, 1), dtype=np.float32)
         for vi, p in zip(vi_list, pred_list):
             pred[vi] = p
     else:

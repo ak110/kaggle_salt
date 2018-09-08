@@ -43,6 +43,9 @@ def _train(args):
     logger = tk.log.get(__name__)
     logger.info(f'args: {args}')
 
+    tk.io.delete_file(CACHE_DIR / 'val' / f'{MODEL_NAME}.pkl')
+    tk.io.delete_file(CACHE_DIR / 'test' / f'{MODEL_NAME}.pkl')
+
     split_seed = int(MODEL_NAME.encode('utf-8').hex(), 16) % 10000000
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     (MODELS_DIR / 'split_seed.txt').write_text(str(split_seed))
