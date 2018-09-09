@@ -65,7 +65,7 @@ def _train(args):
 
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
     # model.compile(sgd_lr=0.1 / 128, loss='binary_crossentropy', metrics=[tk.dl.metrics.binary_accuracy])
-    model.compile(sgd_lr=0.1 / 128, loss=lovasz_hinge, metrics=[tk.dl.metrics.binary_accuracy])
+    model.compile(sgd_lr=1e-4, loss=lovasz_hinge, metrics=[tk.dl.metrics.binary_accuracy])
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
