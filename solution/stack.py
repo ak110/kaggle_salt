@@ -95,12 +95,11 @@ def _create_network(input_dims):
         keras.layers.Reshape((101, 101, 1))(keras.layers.RepeatVector(101 * 101)(inputs[2])),
     ])
     x = keras.layers.concatenate([x, t])
-    x = tk.dl.layers.pad2d()(((13, 14), (13, 14)), mode='reflect')(x)
-    for _ in range(3):
-        x = builder.conv2d(128)(x)
-        x = builder.se_block(128)(x)
-    x = builder.conv2d(1, use_bias=True, use_bn=False, name='prediction', activation='sigmoid')(x)
-    x = keras.layers.Cropping2D(((13, 14), (13, 14)))(x)
+    x = builder.conv2d(64, 1, use_act=False)(x)
+    x = builder.res_block(64, dropout=0.25)(x)
+    x = builder.res_block(64, dropout=0.25)(x)
+    x = builder.bn_act()(x)
+    x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
 
     network = keras.models.Model(inputs, x)
     return network, None
