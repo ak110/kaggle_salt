@@ -26,7 +26,7 @@ def _main():
     args = parser.parse_args()
     with tk.dl.session(use_horovod=args.mode == 'train'):
         if args.mode == 'check':
-            _create_network(input_dims=3)[0].summary()
+            _create_network(input_dims=4, bin_dims=2)[0].summary()
         elif args.mode == 'train':
             tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
             _train(args)
@@ -53,7 +53,7 @@ def _train(args):
     (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti], X_bin[ti]], y[ti]), ([X[vi], d[vi], X_bin[vi]], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
 
-    network, _ = _create_network(input_dims=X.shape[-1])
+    network, _ = _create_network(input_dims=X.shape[-1], bin_dims=X_bin.shape[-1])
 
     gen = tk.generator.Generator(multiple_input=True)
     gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True), input_index=0)
@@ -73,12 +73,13 @@ def _train(args):
         tsv_log_path=MODELS_DIR / f'history.fold{args.cv_index}.tsv',
         cosine_annealing=True)
     model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5')
+    tk.io.delete_file(CACHE_DIR / 'test' / f'{MODEL_NAME}{"-fold" + str(args.cv_index)}.pkl')
 
     if tk.dl.hvd.is_master():
         evaluation.log_evaluation(y_val, model.predict(X_val))
 
 
-def _create_network(input_dims):
+def _create_network(input_dims, bin_dims):
     """ネットワークを作って返す。"""
     import keras
     builder = tk.dl.networks.Builder()
@@ -86,14 +87,13 @@ def _create_network(input_dims):
     inputs = [
         builder.input_tensor(INPUT_SIZE + (input_dims,)),
         builder.input_tensor((1,)),  # depths
-        builder.input_tensor((1,)),  # bin
+        builder.input_tensor((bin_dims,)),  # bin
     ]
     x = inputs[0]
     x = builder.preprocess()(x)
-    t = keras.layers.concatenate([
-        keras.layers.Reshape((101, 101, 1))(keras.layers.RepeatVector(101 * 101)(inputs[1])),
-        keras.layers.Reshape((101, 101, 1))(keras.layers.RepeatVector(101 * 101)(inputs[2])),
-    ])
+    t = keras.layers.concatenate([inputs[1], inputs[2]])
+    t = keras.layers.RepeatVector(101 * 101)(t)
+    t = keras.layers.Reshape((101, 101, 1 + bin_dims))(t)
     x = keras.layers.concatenate([x, t])
     x = builder.conv2d(64, 1, use_act=False)(x)
     x = builder.res_block(64, dropout=0.25)(x)
@@ -129,6 +129,10 @@ def _predict():
 
 def predict_all(data_name, X, d, chilld_cv_index=None):
     """予測。"""
+    cache_path = CACHE_DIR / data_name / f'{MODEL_NAME}{"" if chilld_cv_index is None else "-fold" + str(chilld_cv_index)}.pkl'
+    if cache_path.is_file():
+        return joblib.load(cache_path)
+
     if data_name == 'val':
         X_val, bin_val = _get_meta_features(data_name, X, d)
         X_list, vi_list = [], []
@@ -161,15 +165,19 @@ def predict_all(data_name, X, d, chilld_cv_index=None):
             pred[vi] = p
     else:
         pred = pred_list
+
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(pred, cache_path)
     return pred
 
 
 def _get_meta_features(data_name, X, d, cv_index=None):
     """子モデルのout-of-fold predictionsを取得。"""
-    import bin as bin_model
+    import bin as bin_nas
+    import bin_ir2
     import darknet53
     import darknet53_128
-    import darknet53_nr
+    import darknet53_256
     import nasnet
 
     def _get(m):
@@ -183,10 +191,13 @@ def _get_meta_features(data_name, X, d, cv_index=None):
         X,
         _get(darknet53.predict_all(data_name, X, d)),
         _get(darknet53_128.predict_all(data_name, X, d)),
-        _get(darknet53_nr.predict_all(data_name, X, d)),
+        _get(darknet53_256.predict_all(data_name, X, d)),
         _get(nasnet.predict_all(data_name, X, d)),
     ], axis=-1)
-    X_bin = _get(bin_model.predict_all(data_name, X, d))
+    X_bin = np.concatenate([
+        _get(bin_nas.predict_all(data_name, X, d)),
+        _get(bin_ir2.predict_all(data_name, X, d)),
+    ], axis=-1)
     return X, X_bin
 
 
