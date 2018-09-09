@@ -13,7 +13,7 @@ MODELS_DIR = pathlib.Path(f'models/{MODEL_NAME}')
 REPORTS_DIR = pathlib.Path('reports')
 CACHE_DIR = pathlib.Path('cache')
 CV_COUNT = 5
-INPUT_SIZE = (202, 202)
+INPUT_SIZE = (101, 101)
 BATCH_SIZE = 16
 EPOCHS = 300
 
@@ -64,7 +64,7 @@ def _train(args):
     gen.add(tk.generator.ProcessOutput(lambda y: tk.ndimage.resize(y, 101, 101)))
 
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
-    model.compile(sgd_lr=0.5 / 256, loss='binary_crossentropy', metrics=[tk.dl.metrics.binary_accuracy], lr_multipliers=lr_multipliers)
+    model.compile(sgd_lr=0.1 / 128, loss=mixed_loss, metrics=[tk.dl.metrics.binary_accuracy], lr_multipliers=lr_multipliers)
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
@@ -87,32 +87,32 @@ def _create_network():
         builder.input_tensor((1,)),  # depths
     ]
     x = inputs[0]
-    x = x_in = builder.preprocess(mode='div255')(x)
+    x = builder.preprocess(mode='div255')(x)
+    x = keras.layers.UpSampling2D()(x)  # 202
+    x = x_in = tk.dl.layers.pad2d()(((27, 27), (27, 27)), mode='reflect')(x)
     x = keras.layers.concatenate([x, x, x])
     base_network = tk.applications.darknet53.darknet53(include_top=False, input_tensor=x)
     lr_multipliers = {l: 0.1 for l in base_network.layers}
     down_list = []
-    down_list.append(x_in)  # stage 0: 202
-    down_list.append(base_network.get_layer(name='add_1').output)  # stage 1: 101
-    down_list.append(base_network.get_layer(name='add_3').output)  # stage 2: 50
-    down_list.append(base_network.get_layer(name='add_11').output)  # stage 3: 25
-    down_list.append(base_network.get_layer(name='add_19').output)  # stage 4: 12
-    down_list.append(base_network.get_layer(name='add_23').output)  # stage 5: 6
+    down_list.append(x_in)  # stage 0: 256
+    down_list.append(base_network.get_layer(name='add_1').output)  # stage 1: 128
+    down_list.append(base_network.get_layer(name='add_3').output)  # stage 2: 64
+    down_list.append(base_network.get_layer(name='add_11').output)  # stage 3: 32
+    down_list.append(base_network.get_layer(name='add_19').output)  # stage 4: 16
+    down_list.append(base_network.get_layer(name='add_23').output)  # stage 5: 8
 
     x = base_network.outputs[0]
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(64)(x)
     x = builder.act()(x)
     x = keras.layers.concatenate([x, inputs[1]])
-    x = builder.dense(256)(x)
+    x = builder.dense(64)(x)
     x = builder.act()(x)
     x = keras.layers.Reshape((1, 1, -1))(x)
-    x = builder.conv2dtr(256, 3, strides=3)(x)
+    x = builder.conv2dtr(256, 4, strides=4)(x)
 
-    for stage, (d, filters) in list(enumerate(zip(down_list, [16, 32, 64, 128, 256, 512])))[::-1][:5]:
+    for stage, (d, filters) in list(enumerate(zip(down_list, [16, 32, 64, 128, 256, 512])))[::-1]:
         x = tk.dl.layers.subpixel_conv2d()(scale=2)(x)
-        if stage in (3, 1):
-            x = builder.conv2dtr(filters, 2, padding='valid')(x)
         x = builder.dwconv2d(5)(x)
         x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
@@ -120,6 +120,10 @@ def _create_network():
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.bn_act()(x)
+
+    x = keras.layers.Cropping2D(((27, 27), (27, 27)))(x)  # 202
+    x = keras.layers.Dropout(0.5)(x)
+    x = keras.layers.AveragePooling2D()(x)  # 101
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     network = keras.models.Model(inputs, x)
     return network, lr_multipliers
@@ -164,9 +168,7 @@ def predict_all(data_name, X, d):
         X, d = data.load_test_data()
         X_list = [[X, d]] * CV_COUNT
 
-    gen = tk.generator.Generator(multiple_input=True)
-    gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
-    gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
+    gen = tk.generator.SimpleGenerator()
     model = tk.dl.models.Model.load(MODELS_DIR / f'model.fold0.h5', gen, batch_size=BATCH_SIZE, multi_gpu=True)
 
     pred_list = []
@@ -190,6 +192,22 @@ def predict_all(data_name, X, d):
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(pred, cache_path)
     return pred
+
+
+def mixed_loss(y_true, y_pred):
+    """BCE+Lovasz hinge"""
+    import keras.backend as K
+    loss1 = K.binary_crossentropy(y_true, y_pred)
+    loss2 = lovasz_hinge(y_true, y_pred)
+    return (loss1 + loss2) / 2
+
+
+def lovasz_hinge(y_true, y_pred):
+    """Binary Lovasz hinge loss"""
+    import keras.backend as K
+    from lovasz_softmax import lovasz_losses_tf
+    logit = K.log(y_pred / (1 - y_pred + K.epsilon()))
+    return lovasz_losses_tf.lovasz_hinge(logit, y_true)
 
 
 if __name__ == '__main__':
