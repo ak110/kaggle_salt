@@ -94,6 +94,9 @@ def _create_network():
     x = keras.layers.Dropout(0.5)(x)
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = keras.layers.concatenate([x, inputs[1]])
+    x = keras.layers.Dense(256, activation='relu',
+                           kernel_initializer='he_uniform',
+                           kernel_regularizer=keras.regularizers.l2(1e-4))(x)
     x = keras.layers.Dense(1, activation='sigmoid',
                            kernel_initializer='zeros',
                            kernel_regularizer=keras.regularizers.l2(1e-4))(x)

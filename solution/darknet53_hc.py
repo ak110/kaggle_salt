@@ -89,7 +89,7 @@ def _create_network():
     x = inputs[0]
     x = builder.preprocess(mode='div255')(x)
     x = keras.layers.UpSampling2D()(x)  # 202
-    x = x_in = tk.dl.layers.pad2d()(((27, 27), (27, 27)), mode='reflect')(x)
+    x = x_in = tk.dl.layers.pad2d()(((27, 27), (27, 27)), mode='reflect')(x)  # 256
     x = keras.layers.concatenate([x, x, x])
     base_network = tk.applications.darknet53.darknet53(include_top=False, input_tensor=x)
     lr_multipliers = {l: 0.1 for l in base_network.layers}
