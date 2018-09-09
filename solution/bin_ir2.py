@@ -69,7 +69,7 @@ def _train(args):
         X_train, y_train, validation_data=(X_val, y_val),
         epochs=EPOCHS,
         tsv_log_path=MODELS_DIR / f'history.fold{args.cv_index}.tsv',
-        cosine_annealing=True, mixup=True)
+        reduce_lr_epoch_rates=(0.5, 0.75), mixup=True)
     model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5')
 
     if tk.dl.hvd.is_master():
@@ -98,7 +98,7 @@ def _create_network():
                            kernel_initializer='he_uniform',
                            kernel_regularizer=keras.regularizers.l2(1e-4))(x)
     x = keras.layers.Dense(1, activation='sigmoid',
-                           kernel_initializer='zeros',
+                           kernel_initializer='he_uniform',
                            kernel_regularizer=keras.regularizers.l2(1e-4))(x)
     network = keras.models.Model(inputs, x)
     return network, None
