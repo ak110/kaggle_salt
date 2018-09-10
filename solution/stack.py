@@ -175,9 +175,9 @@ def _get_meta_features(data_name, X, d, cv_index=None):
     """子モデルのout-of-fold predictionsを取得。"""
     import bin as bin_nas
     import bin_ir2
-    import darknet53
-    import darknet53_128
     import darknet53_256
+    import darknet53_hc
+    import darknet53_res
     import nasnet
 
     def _get(m):
@@ -189,9 +189,9 @@ def _get_meta_features(data_name, X, d, cv_index=None):
 
     X = np.concatenate([
         X,
-        _get(darknet53.predict_all(data_name, X, d)),
-        _get(darknet53_128.predict_all(data_name, X, d)),
         _get(darknet53_256.predict_all(data_name, X, d)),
+        _get(darknet53_hc.predict_all(data_name, X, d)),
+        _get(darknet53_res.predict_all(data_name, X, d)),
         _get(nasnet.predict_all(data_name, X, d)),
     ], axis=-1)
     X_bin = np.concatenate([
