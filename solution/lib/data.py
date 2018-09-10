@@ -7,7 +7,6 @@ import pandas as pd
 import pytoolkit as tk
 
 TRAIN_IMAGE_DIR = pathlib.Path('../input/train/images')
-TRAIN_IMAGE_DIR = pathlib.Path('../input/train/images')
 TRAIN_MASK_DIR = pathlib.Path('../input/train/masks')
 TEST_IMAGE_DIR = pathlib.Path('../input/test/images')
 TRAIN_PATH = pathlib.Path('../input/train.csv')
@@ -19,16 +18,16 @@ CACHE_DIR = pathlib.Path('cache')
 @tk.cache.memorize(CACHE_DIR)
 def load_train_data():
     id_list = pd.read_csv(TRAIN_PATH)['id'].values
-    X = _load_image(np.array([TRAIN_IMAGE_DIR / (id_ + '.png') for id_ in id_list]))
+    X = _load_image([TRAIN_IMAGE_DIR / f'{id_}.png' for id_ in id_list])
     d = _load_depths(id_list)
-    y = _load_image(np.array([TRAIN_MASK_DIR / (id_ + '.png') for id_ in id_list]))
+    y = _load_image([TRAIN_MASK_DIR / f'{id_}.png' for id_ in id_list])
     return X, d, y
 
 
 @tk.cache.memorize(CACHE_DIR)
 def load_test_data():
     id_list = pd.read_csv(TEST_PATH)['id'].values
-    X = _load_image(np.array([TEST_IMAGE_DIR / (id_ + '.png') for id_ in id_list]))
+    X = _load_image([TEST_IMAGE_DIR / f'{id_}.png' for id_ in id_list])
     d = _load_depths(id_list)
     return X, d
 
