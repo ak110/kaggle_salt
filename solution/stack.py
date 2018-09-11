@@ -90,7 +90,6 @@ def _create_network(input_dims, bin_dims):
         builder.input_tensor((bin_dims,)),  # bin
     ]
     x = inputs[0]
-    x = builder.preprocess()(x)
     t = keras.layers.concatenate([inputs[1], inputs[2]])
     t = keras.layers.RepeatVector(101 * 101)(t)
     t = keras.layers.Reshape((101, 101, 1 + bin_dims))(t)
@@ -188,7 +187,7 @@ def _get_meta_features(data_name, X, d, cv_index=None):
             return m[cv_index]
 
     X = np.concatenate([
-        X,
+        X / 255,
         _get(darknet53_256.predict_all(data_name, X, d)),
         _get(darknet53_hc.predict_all(data_name, X, d)),
         _get(darknet53_res.predict_all(data_name, X, d)),
