@@ -15,7 +15,7 @@ DEPTHS_PATH = pathlib.Path('../input/depths.csv')
 CACHE_DIR = pathlib.Path('cache')
 
 
-@tk.cache.memorize(CACHE_DIR, compress=3)
+@tk.cache.memorize(CACHE_DIR, compress=1)
 def load_train_data():
     """訓練データ。Xは0～255、yは0～1。dは平均0、標準偏差1。"""
     id_list = pd.read_csv(TRAIN_PATH)['id'].values
@@ -25,7 +25,7 @@ def load_train_data():
     return X, d, y
 
 
-@tk.cache.memorize(CACHE_DIR, compress=3)
+@tk.cache.memorize(CACHE_DIR, compress=1)
 def load_test_data():
     """訓練データ。Xは0～255。dは平均0、標準偏差1。"""
     id_list = pd.read_csv(TEST_PATH)['id'].values
