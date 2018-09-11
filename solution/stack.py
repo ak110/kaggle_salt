@@ -167,7 +167,7 @@ def predict_all(data_name, X, d, chilld_cv_index=None):
         pred = pred_list
 
     cache_path.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(pred, cache_path)
+    joblib.dump(pred, cache_path, compress=3)
     return pred
 
 

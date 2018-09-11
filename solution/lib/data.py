@@ -15,7 +15,7 @@ DEPTHS_PATH = pathlib.Path('../input/depths.csv')
 CACHE_DIR = pathlib.Path('cache')
 
 
-@tk.cache.memorize(CACHE_DIR)
+@tk.cache.memorize(CACHE_DIR, compress=3)
 def load_train_data():
     id_list = pd.read_csv(TRAIN_PATH)['id'].values
     X = _load_image([TRAIN_IMAGE_DIR / f'{id_}.png' for id_ in id_list])
@@ -24,7 +24,7 @@ def load_train_data():
     return X, d, y
 
 
-@tk.cache.memorize(CACHE_DIR)
+@tk.cache.memorize(CACHE_DIR, compress=3)
 def load_test_data():
     id_list = pd.read_csv(TEST_PATH)['id'].values
     X = _load_image([TEST_IMAGE_DIR / f'{id_}.png' for id_ in id_list])
