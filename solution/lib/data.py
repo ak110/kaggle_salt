@@ -17,15 +17,17 @@ CACHE_DIR = pathlib.Path('cache')
 
 @tk.cache.memorize(CACHE_DIR, compress=3)
 def load_train_data():
+    """訓練データ。Xは0～255、yは0～1。dは平均0、標準偏差1。"""
     id_list = pd.read_csv(TRAIN_PATH)['id'].values
     X = _load_image([TRAIN_IMAGE_DIR / f'{id_}.png' for id_ in id_list])
     d = _load_depths(id_list)
-    y = _load_image([TRAIN_MASK_DIR / f'{id_}.png' for id_ in id_list])
+    y = _load_image([TRAIN_MASK_DIR / f'{id_}.png' for id_ in id_list]) / 255
     return X, d, y
 
 
 @tk.cache.memorize(CACHE_DIR, compress=3)
 def load_test_data():
+    """訓練データ。Xは0～255。dは平均0、標準偏差1。"""
     id_list = pd.read_csv(TEST_PATH)['id'].values
     X = _load_image([TEST_IMAGE_DIR / f'{id_}.png' for id_ in id_list])
     d = _load_depths(id_list)
@@ -42,7 +44,7 @@ def _load_depths(id_list):
 
 
 def _load_image(X):
-    X = np.array([cv2.imread(str(p), cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255 for p in tk.tqdm(X, desc='load')])
+    X = np.array([cv2.imread(str(p), cv2.IMREAD_GRAYSCALE).astype(np.float32) for p in tk.tqdm(X, desc='load')])
     X = np.expand_dims(X, axis=-1)
     return X
 
