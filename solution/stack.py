@@ -172,7 +172,7 @@ def predict_all(data_name, X, d, chilld_cv_index=None):
 
 def _get_meta_features(data_name, X, d, cv_index=None):
     """子モデルのout-of-fold predictionsを取得。"""
-    import bin as bin_nas
+    import bin_nas
     import bin_ir2
     import darknet53_256
     import darknet53_hc
