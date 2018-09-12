@@ -15,7 +15,7 @@ CACHE_DIR = pathlib.Path('cache')
 CV_COUNT = 5
 INPUT_SIZE = (101, 101)
 BATCH_SIZE = 64
-EPOCHS = 300
+EPOCHS = 100
 
 
 def _main():
@@ -65,13 +65,13 @@ def _train(args):
 
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
     # model.compile(sgd_lr=0.1 / 128, loss='binary_crossentropy', metrics=[tk.dl.metrics.binary_accuracy])
-    model.compile(sgd_lr=1e-4, loss=lovasz_hinge, metrics=[tk.dl.metrics.binary_accuracy])
+    model.compile(sgd_lr=0.1 / 128, loss=lovasz_hinge, metrics=[tk.dl.metrics.binary_accuracy])
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
         epochs=EPOCHS,
         tsv_log_path=MODELS_DIR / f'history.fold{args.cv_index}.tsv',
-        cosine_annealing=True)
+        cosine_annealing=True, mixup=True)
     model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5')
     tk.io.delete_file(CACHE_DIR / 'test' / f'{MODEL_NAME}{"-fold" + str(args.cv_index)}.pkl')
 
@@ -95,6 +95,7 @@ def _create_network(input_dims, bin_dims):
     t = keras.layers.Reshape((101, 101, 1 + bin_dims))(t)
     x = keras.layers.concatenate([x, t])
     x = builder.conv2d(64, 1, use_act=False)(x)
+    x = builder.res_block(64, dropout=0.25)(x)
     x = builder.res_block(64, dropout=0.25)(x)
     x = builder.res_block(64, dropout=0.25)(x)
     x = builder.bn_act()(x)
