@@ -65,7 +65,7 @@ def _train(args):
 
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
     # model.compile(sgd_lr=0.1 / 128, loss='binary_crossentropy', metrics=[tk.dl.metrics.binary_accuracy])
-    model.compile(sgd_lr=0.1 / 128, loss=lovasz_hinge, metrics=[tk.dl.metrics.binary_accuracy])
+    model.compile(sgd_lr=0.01 / 128, loss=lovasz_hinge, metrics=[tk.dl.metrics.binary_accuracy])
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
@@ -178,7 +178,7 @@ def _get_meta_features(data_name, X, d, cv_index=None):
     import darknet53_256
     import darknet53_hc
     import darknet53_res
-    import nasnet
+    import resnet
 
     def _get(m):
         if data_name == 'val':
@@ -192,7 +192,7 @@ def _get_meta_features(data_name, X, d, cv_index=None):
         _get(darknet53_256.predict_all(data_name, X, d)),
         _get(darknet53_hc.predict_all(data_name, X, d)),
         _get(darknet53_res.predict_all(data_name, X, d)),
-        _get(nasnet.predict_all(data_name, X, d)),
+        _get(resnet.predict_all(data_name, X, d)),
     ], axis=-1)
     X_bin = np.concatenate([
         _get(bin_nas.predict_all(data_name, X, d)),

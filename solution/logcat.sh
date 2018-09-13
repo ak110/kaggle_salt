@@ -4,6 +4,8 @@ for d in models/* ; do
     if [ -d $d ] ; then
         echo "====================== $d ======================"
         grep 'max score:' $d/train.*.log || grep --with-filename 'Accuracy:' $d/train.*.log
-        if [ -f reports/$(basename $d).txt ] ; then grep --with-filename 'max score:' reports/$(basename $d).txt ; fi
+        if [ -f reports/$(basename $d).txt ] ; then
+            grep --with-filename 'max score:' reports/$(basename $d).txt || grep --with-filename 'Accuracy:' reports/$(basename $d).txt
+        fi
     fi
 done
