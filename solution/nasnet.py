@@ -14,7 +14,7 @@ REPORTS_DIR = pathlib.Path('reports')
 CACHE_DIR = pathlib.Path('cache')
 CV_COUNT = 5
 INPUT_SIZE = (101, 101)
-BATCH_SIZE = 16
+BATCH_SIZE = 12
 EPOCHS = 300
 
 
