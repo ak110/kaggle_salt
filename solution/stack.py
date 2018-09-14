@@ -65,7 +65,7 @@ def _train(args):
 
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
     # model.compile(sgd_lr=0.1 / 128, loss='binary_crossentropy', metrics=[tk.dl.metrics.binary_accuracy])
-    model.compile(sgd_lr=0.01 / 128, loss=lovasz_hinge, metrics=[tk.dl.metrics.binary_accuracy])
+    model.compile(sgd_lr=0.01 / 128, loss=mixed_loss, metrics=[tk.dl.metrics.binary_accuracy])
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
@@ -199,6 +199,14 @@ def _get_meta_features(data_name, X, d, cv_index=None):
         _get(bin_ir2.predict_all(data_name, X, d)),
     ], axis=-1)
     return X, X_bin
+
+
+def mixed_loss(y_true, y_pred):
+    """BCE+Lovasz hinge"""
+    import keras.backend as K
+    loss1 = K.binary_crossentropy(y_true, y_pred)
+    loss2 = lovasz_hinge(y_true, y_pred)
+    return loss1 * 0.25 + loss2 * 0.75
 
 
 def lovasz_hinge(y_true, y_pred):
