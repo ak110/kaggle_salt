@@ -123,7 +123,7 @@ def _predict():
     logger.info(f'threshold = {threshold:.3f}')
     X_test, d_test = data.load_test_data()
     pred_list = sum([predict_all('test', X_test, d_test, chilld_cv_index) for chilld_cv_index in range(5)], [])
-    pred = np.sum([p > threshold for p in pred_list], axis=0) > len(pred_list) / 2  # hard voting
+    pred = np.mean(pred_list, axis=0) > threshold
     data.save_submission(MODELS_DIR / 'submission.csv', pred)
 
 
