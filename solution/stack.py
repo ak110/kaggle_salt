@@ -65,7 +65,8 @@ def _train(args):
 
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
     # model.compile(sgd_lr=0.1 / 128, loss='binary_crossentropy', metrics=[tk.dl.metrics.binary_accuracy])
-    model.compile(sgd_lr=0.01 / 128, loss=mixed_loss, metrics=[tk.dl.metrics.binary_accuracy])
+    # model.compile(sgd_lr=0.01 / 128, loss=mixed_loss, metrics=[tk.dl.metrics.binary_accuracy])
+    model.compile(sgd_lr=0.01 / 128, loss=lovasz_hinge, metrics=[tk.dl.metrics.binary_accuracy])
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
@@ -95,9 +96,8 @@ def _create_network(input_dims, bin_dims):
     t = keras.layers.Reshape((101, 101, 1 + bin_dims))(t)
     x = keras.layers.concatenate([x, t])
     x = builder.conv2d(64, 1, use_act=False)(x)
-    x = builder.res_block(64, dropout=0.25)(x)
-    x = builder.res_block(64, dropout=0.25)(x)
-    x = builder.res_block(64, dropout=0.25)(x)
+    for _ in range(4):
+        x = builder.res_block(64, dropout=0.25)(x)
     x = builder.bn_act()(x)
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
 
@@ -178,6 +178,7 @@ def _get_meta_features(data_name, X, d, cv_index=None):
     import darknet53_256
     import darknet53_hc
     import darknet53_res
+    import nasnet
     import resnet
 
     def _get(m):
@@ -192,6 +193,7 @@ def _get_meta_features(data_name, X, d, cv_index=None):
         _get(darknet53_256.predict_all(data_name, X, d)),
         _get(darknet53_hc.predict_all(data_name, X, d)),
         _get(darknet53_res.predict_all(data_name, X, d)),
+        _get(nasnet.predict_all(data_name, X, d)),
         _get(resnet.predict_all(data_name, X, d)),
     ], axis=-1)
     X_bin = np.concatenate([
