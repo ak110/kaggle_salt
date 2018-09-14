@@ -11,7 +11,6 @@ import pytoolkit as tk
 MODEL_NAME = pathlib.Path(__file__).stem
 MODELS_DIR = pathlib.Path(f'models/{MODEL_NAME}')
 REPORTS_DIR = pathlib.Path('reports')
-CACHE_DIR = pathlib.Path('cache')
 CV_COUNT = 5
 INPUT_SIZE = (101, 101)
 BATCH_SIZE = 64
@@ -74,7 +73,6 @@ def _train(args):
         tsv_log_path=MODELS_DIR / f'history.fold{args.cv_index}.tsv',
         cosine_annealing=True, mixup=True)
     model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5')
-    tk.io.delete_file(CACHE_DIR / 'test' / f'{MODEL_NAME}{"-fold" + str(args.cv_index)}.pkl')
 
     if tk.dl.hvd.is_master():
         evaluation.log_evaluation(y_val, model.predict(X_val))
@@ -129,10 +127,6 @@ def _predict():
 
 def predict_all(data_name, X, d, chilld_cv_index=None):
     """予測。"""
-    cache_path = CACHE_DIR / data_name / f'{MODEL_NAME}{"" if chilld_cv_index is None else "-fold" + str(chilld_cv_index)}.pkl'
-    if cache_path.is_file():
-        return joblib.load(cache_path)
-
     if data_name == 'val':
         X_val, bin_val = _get_meta_features(data_name, X, d)
         X_list, vi_list = [], []
@@ -165,9 +159,6 @@ def predict_all(data_name, X, d, chilld_cv_index=None):
             pred[vi] = p
     else:
         pred = pred_list
-
-    cache_path.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(pred, cache_path, compress=1)
     return pred
 
 
