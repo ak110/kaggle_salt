@@ -7,7 +7,7 @@ import numpy as np
 import sklearn.externals.joblib as joblib
 
 import pytoolkit as tk
-from lib import data
+from lib import data, generator
 
 MODEL_NAME = pathlib.Path(__file__).stem
 MODELS_DIR = pathlib.Path(f'models/{MODEL_NAME}')
@@ -55,12 +55,7 @@ def _train(args):
 
     network, _ = _create_network()
 
-    gen = tk.generator.Generator(multiple_input=True)
-    gen.add(tk.image.RandomFlipLR(probability=0.5), input_index=0)
-    gen.add(tk.image.RandomPadding(probability=0.25), input_index=0)
-    gen.add(tk.image.RandomRotate(probability=0.25), input_index=0)
-    gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
-
+    gen = generator.create_generator(mode='bin')
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
     model.compile(sgd_lr=0.01 / 128, loss='binary_crossentropy', metrics=[tk.dl.metrics.binary_accuracy])
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)

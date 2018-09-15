@@ -50,12 +50,19 @@ def _load_image(X):
 
 
 def save_submission(save_path, pred):
+    """投稿用ファイルを出力。ついでにちょっとだけ結果を分析。"""
+    # 投稿用ファイルを出力
     id_list = pd.read_csv(TEST_PATH)['id'].values
     pred_dict = {id_: _encode_rl(pred[i]) for i, id_ in enumerate(tk.tqdm(id_list, desc='encode_rl'))}
     df = pd.DataFrame.from_dict(pred_dict, orient='index')
     df.index.names = ['id']
     df.columns = ['rle_mask']
     df.to_csv(str(save_path))
+    # 結果を分析
+    pred_bin = np.expand_dims(np.max(pred, axis=(1, 2, 3)).astype(np.uint8), axis=-1)  # 0 or 1
+    empty_count = len(pred_bin) - pred_bin.sum()
+    logger = tk.log.get(__name__)
+    logger.info(f'empty rate: {empty_count}/{len(pred_bin)} = {100 * empty_count / len(pred_bin):.1f}%')
 
 
 def _encode_rl(img):
