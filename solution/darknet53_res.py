@@ -197,16 +197,8 @@ def mixed_loss(y_true, y_pred):
     """BCE+Lovasz hinge"""
     import keras.backend as K
     loss1 = K.binary_crossentropy(y_true, y_pred)
-    loss2 = lovasz_hinge(y_true, y_pred)
+    loss2 = tk.dl.losses.lovasz_hinge(y_true, y_pred)
     return (loss1 + loss2) / 2
-
-
-def lovasz_hinge(y_true, y_pred):
-    """Binary Lovasz hinge loss"""
-    import keras.backend as K
-    from lovasz_softmax import lovasz_losses_tf
-    logit = K.log(y_pred / (1 - y_pred + K.epsilon()))
-    return lovasz_losses_tf.lovasz_hinge(logit, y_true)
 
 
 if __name__ == '__main__':

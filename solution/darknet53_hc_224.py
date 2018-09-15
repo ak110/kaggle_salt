@@ -68,7 +68,7 @@ def _train(args):
     gen.add(tk.generator.ProcessOutput(lambda y: tk.ndimage.resize(y, 101, 101)))
 
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
-    model.compile(sgd_lr=0.1 / 128, loss=mixed_loss, metrics=[tk.dl.metrics.binary_accuracy], lr_multipliers=lr_multipliers)
+    model.compile(sgd_lr=0.1 / 128, loss=tk.dl.losses.lovasz_hinge, metrics=[tk.dl.metrics.binary_accuracy], lr_multipliers=lr_multipliers)
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
@@ -210,22 +210,6 @@ def predict_all(data_name, X, d):
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(pred, cache_path, compress=1)
     return pred
-
-
-def mixed_loss(y_true, y_pred):
-    """BCE+Lovasz hinge"""
-    import keras.backend as K
-    loss1 = K.binary_crossentropy(y_true, y_pred)
-    loss2 = lovasz_hinge(y_true, y_pred)
-    return (loss1 + loss2) / 2
-
-
-def lovasz_hinge(y_true, y_pred):
-    """Binary Lovasz hinge loss"""
-    import keras.backend as K
-    from lovasz_softmax import lovasz_losses_tf
-    logit = K.log(y_pred / (1 - y_pred + K.epsilon()))
-    return lovasz_losses_tf.lovasz_hinge(logit, y_true)
 
 
 if __name__ == '__main__':
