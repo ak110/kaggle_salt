@@ -55,7 +55,6 @@ def _train(args):
     network, _ = _create_network()
 
     gen = tk.generator.Generator(multiple_input=True)
-    gen.add(tk.image.LoadImage(grayscale=True), input_index=0)
     gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True), input_index=0)
     gen.add(tk.image.Padding(probability=1, with_output=True), input_index=0)
     gen.add(tk.image.RandomRotate(probability=0.25, with_output=True), input_index=0)
