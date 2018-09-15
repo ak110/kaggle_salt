@@ -59,6 +59,11 @@ def _train(args):
     gen.add(tk.image.Padding(probability=1, with_output=True), input_index=0)
     gen.add(tk.image.RandomRotate(probability=0.25, with_output=True), input_index=0)
     gen.add(tk.image.RandomCrop(probability=1, with_output=True), input_index=0)
+    gen.add(tk.image.RandomAugmentors([
+        tk.image.RandomBlur(probability=0.125),
+        tk.image.RandomUnsharpMask(probability=0.125),
+        tk.image.RandomBrightness(probability=0.25),
+    ], probability=0.125), input_index=0)
     gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
     gen.add(tk.generator.ProcessOutput(lambda y: tk.ndimage.resize(y, 101, 101)))
 
@@ -112,15 +117,16 @@ def _create_network():
     up_list = []
     for stage, (d, filters) in list(enumerate(zip(down_list, [16, 32, 64, 128, 256, 512])))[::-1]:
         if stage == 5:
-            x = builder.conv2dtr(64, 7, strides=7)(x)
+            x = keras.layers.UpSampling2D(7)(x)
         else:
             x = tk.dl.layers.subpixel_conv2d()(scale=2)(x)
             x = builder.dwconv2d(5)(x)
         x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
         x = keras.layers.add([x, d])
-        x = builder.conv2d(filters)(x)
-        x = builder.conv2d(filters)(x)
+        x = builder.res_block(filters, dropout=0.25)(x)
+        x = builder.res_block(filters, dropout=0.25)(x)
+        x = builder.bn_act()(x)
         x = builder.scse_block(filters)(x)
         up_list.append(builder.conv2d(32, 1)(x))
 
@@ -135,6 +141,7 @@ def _create_network():
 
     x = keras.layers.Cropping2D(((5, 6), (5, 6)))(x)  # 101
     x = keras.layers.Dropout(0.5)(x)
+    x = builder.conv2d(64)(x)
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     network = keras.models.Model(inputs, x)
     return network, lr_multipliers
