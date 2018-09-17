@@ -56,7 +56,7 @@ def _train(args):
 
     gen = generator.create_generator(mode='ss')
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
-    model.compile(sgd_lr=0.1 / 128, loss=mixed_loss, metrics=[tk.dl.metrics.binary_accuracy], lr_multipliers=lr_multipliers)
+    model.compile(sgd_lr=0.1 / 128, loss=tk.dl.losses.lovasz_hinge, metrics=[tk.dl.metrics.binary_accuracy], lr_multipliers=lr_multipliers)
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
@@ -189,14 +189,6 @@ def predict_all(data_name, X, d):
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(pred, cache_path, compress=3)
     return pred
-
-
-def mixed_loss(y_true, y_pred):
-    """BCE+Lovasz hinge"""
-    import keras.backend as K
-    loss1 = K.binary_crossentropy(y_true, y_pred)
-    loss2 = tk.dl.losses.lovasz_hinge(y_true, y_pred)
-    return (loss1 + loss2) / 2
 
 
 if __name__ == '__main__':
