@@ -128,7 +128,6 @@ def _create_network():
     ])  # 112
 
     x = keras.layers.Cropping2D(((5, 6), (5, 6)))(x)  # 101
-    x = keras.layers.Dropout(0.5)(x)
     x = builder.conv2d(64)(x)
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     network = keras.models.Model(inputs, x)

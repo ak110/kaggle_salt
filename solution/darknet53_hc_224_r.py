@@ -79,32 +79,35 @@ def _create_network():
         builder.input_tensor((1,)),  # depths
     ]
     x = inputs[0]
-    x = builder.preprocess(mode='tf')(x)
-    x = tk.dl.layers.pad2d()(((13, 14), (13, 14)), mode='reflect')(x)  # 256
+    x = builder.preprocess(mode='div255')(x)
+    x = x_in = tk.dl.layers.resize2d()((224, 224))(x)  # 224
     x = keras.layers.concatenate([x, x, x])
-    base_network = tk.applications.vgg16bn.vgg16bn(include_top=False, input_tensor=x)
+    base_network = tk.applications.darknet53.darknet53(include_top=False, input_tensor=x)
     lr_multipliers = {l: 0.1 for l in base_network.layers}
     down_list = []
-    down_list.append(base_network.get_layer(name='block1_pool').input)  # stage 1: 128
-    down_list.append(base_network.get_layer(name='block2_pool').input)  # stage 2: 64
-    down_list.append(base_network.get_layer(name='block3_pool').input)  # stage 3: 32
-    down_list.append(base_network.get_layer(name='block4_pool').input)  # stage 4: 16
-    down_list.append(base_network.get_layer(name='block5_pool').input)  # stage 5: 8
+    down_list.append(x_in)  # stage 0: 224
+    down_list.append(base_network.get_layer(name='add_1').output)  # stage 1: 112
+    down_list.append(base_network.get_layer(name='add_3').output)  # stage 2: 56
+    down_list.append(base_network.get_layer(name='add_11').output)  # stage 3: 28
+    down_list.append(base_network.get_layer(name='add_19').output)  # stage 4: 14
+    down_list.append(base_network.get_layer(name='add_23').output)  # stage 5: 7
 
     x = base_network.outputs[0]
-    x = keras.layers.Flatten()(x)
-    x = builder.dense(64)(x)
+    x = keras.layers.GlobalAveragePooling2D()(x)
+    x = builder.dense(256)(x)
     x = builder.act()(x)
     x = keras.layers.concatenate([x, inputs[1]])
-    x = builder.dense(64)(x)
+    x = builder.dense(256)(x)
     x = builder.act()(x)
     x = keras.layers.Reshape((1, 1, -1))(x)
-    x = builder.conv2dtr(256, 4, strides=4)(x)
 
     up_list = []
-    for stage, (d, filters) in list(enumerate(zip(down_list, [32, 64, 128, 256, 512])))[::-1]:
-        x = tk.dl.layers.subpixel_conv2d()(scale=2)(x)
-        x = builder.dwconv2d(5)(x)
+    for stage, (d, filters) in list(enumerate(zip(down_list, [16, 32, 64, 128, 256, 512])))[::-1]:
+        if stage == 5:
+            x = keras.layers.UpSampling2D(7)(x)
+        else:
+            x = tk.dl.layers.subpixel_conv2d()(scale=2)(x)
+            x = builder.dwconv2d(5)(x)
         x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
         x = keras.layers.add([x, d])
@@ -120,10 +123,10 @@ def _create_network():
         keras.layers.UpSampling2D(4)(up_list[2]),
         keras.layers.UpSampling2D(2)(up_list[3]),
         up_list[4],
-    ])  # 128
+        keras.layers.AveragePooling2D()(up_list[5]),
+    ])  # 112
 
-    x = keras.layers.Cropping2D(((13, 14), (13, 14)))(x)  # 101
-    x = keras.layers.Dropout(0.5)(x)
+    x = tk.dl.layers.resize2d()((101, 101))(x)  # 101
     x = builder.conv2d(64)(x)
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     network = keras.models.Model(inputs, x)
