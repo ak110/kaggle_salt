@@ -80,7 +80,7 @@ def _create_network():
     ]
     x = inputs[0]
     x = builder.preprocess(mode='tf')(x)
-    x = tk.dl.layers.pad2d()(((13, 14), (13, 14)), mode='reflect')(x)  # 256
+    x = tk.dl.layers.pad2d()(((13, 14), (13, 14)), mode='reflect')(x)  # 128
     x = keras.layers.concatenate([x, x, x])
     base_network = tk.applications.vgg16bn.vgg16bn(include_top=False, input_tensor=x)
     lr_multipliers = {l: 0.1 for l in base_network.layers}
@@ -123,7 +123,6 @@ def _create_network():
     ])  # 128
 
     x = keras.layers.Cropping2D(((13, 14), (13, 14)))(x)  # 101
-    x = keras.layers.Dropout(0.5)(x)
     x = builder.conv2d(64)(x)
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     network = keras.models.Model(inputs, x)
