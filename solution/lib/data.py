@@ -68,26 +68,8 @@ def save_submission(save_path, pred):
 def _encode_rl(img):
     """ランレングス。"""
     img = img.reshape(img.shape[0] * img.shape[1], order='F')
-    runs = []  # list of run lengths
-    r = 0  # the current run length
-    pos = 1  # count starts from 1 per WK
-    for c in img:
-        if c == 0:
-            if r != 0:
-                runs.append((pos, r))
-                pos += r
-                r = 0
-            pos += 1
-        else:
-            r += 1
-
-    # if last run is unsaved (i.e. data ends with 1)
-    if r != 0:
-        runs.append((pos, r))
-        pos += r
-        r = 0
-
-    z = ''
-    for rr in runs:
-        z += f'{rr[0]} {rr[1]} '
-    return z[:-1]
+    img = np.concatenate([[0], img, [0]])
+    changes = img[1:] != img[:-1]
+    rls = np.where(changes)[0] + 1
+    rls[1::2] -= rls[::2]
+    return ' '.join(str(x) for x in rls)

@@ -56,7 +56,7 @@ def _train(args):
 
     gen = generator.create_generator(mode='ss')
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
-    model.compile(sgd_lr=0.1 / 128, loss=tk.dl.losses.lovasz_hinge, metrics=[tk.dl.metrics.binary_accuracy], lr_multipliers=lr_multipliers)
+    model.compile(sgd_lr=0.1 / 128, loss=tk.dl.losses.lovasz_hinge, metrics=[tk.dl.metrics.binary_accuracy])
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
@@ -109,13 +109,12 @@ def _create_network():
         x = tk.dl.layers.subpixel_conv2d()(scale=2)(x)
         if stage in (4, 3, 1, 0):
             x = builder.conv2d(filters, 2, padding='valid')(x)
-        x = builder.dwconv2d(5)(x)
-        x = builder.conv2d(filters, 1, use_act=False)(x)
-        d = builder.conv2d(filters, 1, use_act=False)(d)
+        x = builder.conv2d(filters, 3, use_act=False)(x)
         x = keras.layers.add([x, d])
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.res_block(filters, dropout=0.25)(x)
         x = builder.bn_act()(x)
+        x = builder.scse_block(filters)(x)
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     network = keras.models.Model(inputs, x)
     return network, None
