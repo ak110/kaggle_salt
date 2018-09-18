@@ -167,8 +167,7 @@ def _get_meta_features(data_name, X, d, cv_index=None):
     import darknet53_256
     import darknet53_hc
     import darknet53_res
-    import nasnet
-    import resnet
+    import vgg
 
     def _get(m):
         if data_name == 'val':
@@ -182,8 +181,7 @@ def _get_meta_features(data_name, X, d, cv_index=None):
         _get(darknet53_256.predict_all(data_name, X, d)),
         _get(darknet53_hc.predict_all(data_name, X, d)),
         _get(darknet53_res.predict_all(data_name, X, d)),
-        _get(nasnet.predict_all(data_name, X, d)),  # TODO: remove?
-        _get(resnet.predict_all(data_name, X, d)),  # TODO: remove?
+        _get(vgg.predict_all(data_name, X, d)),
     ], axis=-1)
     X_bin = np.concatenate([
         _get(bin_nas.predict_all(data_name, X, d)),
