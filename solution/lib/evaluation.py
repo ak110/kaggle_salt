@@ -11,23 +11,13 @@ def log_evaluation(y_val, pred_val, print_fn=None):
     # 正解率とか
     tk.ml.print_classification_metrics(np.ravel(y_val), np.ravel(pred_val), print_fn=print_fn)
 
-    # 閾値の最適化
-    threshold_list = np.linspace(0.1, 0.9, 20)
-    score_list = []
-    for th in tk.tqdm(threshold_list, desc='threshold'):
-        score = compute_score(np.int32(y_val > 0.5), np.int32(pred_val > th))
-        score_list.append(score)
-    best_index = np.argmax(score_list)
-    print_fn(f'max score: {score_list[best_index]:.3f} (threshold: {threshold_list[best_index]:.3f})')
-    # print_fn('scores:')
-    # for th, score in zip(threshold_list, score_list):
-    #     print_fn(f'  threshold={th:.3f}: score={score:.3f}')
-    threshold = threshold_list[best_index]
+    # スコア(thresholdは探索しても毎回ぶれるので0.5固定にする)
+    threshold = 0.5
+    score = compute_score(np.int32(y_val > 0.5), np.int32(pred_val > threshold))
+    print_fn(f'score: {score:.3f} (threshold: {threshold:.3f})')
 
     # オレオレ指標
     print_metrics(np.int32(y_val > 0.5), np.int32(pred_val > threshold), print_fn=print_fn)
-
-    return threshold
 
 
 def compute_score(y_true, y_pred):
