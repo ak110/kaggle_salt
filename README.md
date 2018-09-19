@@ -13,7 +13,8 @@
 
 ## memo
 
-- 112 == 224
+- 112 == 224 (+0.001)
 - padding > resize (+0.004)
 - lovasz > BCE (+0.010)
+- stack.py: bin-ir2 (+0.001)
 
