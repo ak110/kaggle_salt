@@ -8,7 +8,12 @@
 
 ## TODO
 
-- TTA (LR?)
 - cross-pseudo-labeling: XyをNoneにしたデータを一定数入れといてgenで処理。cv-index +1のモデルでやると、2,3週はいけるはず。
-- ensemble
-  - predict.pyが最初にキャッシュを削除してからキャッシュディレクトリありで呼び出す感じがよい
+
+
+## memo
+
+- 112 == 224
+- padding > resize (+0.004)
+- lovasz > BCE (+0.010)
+

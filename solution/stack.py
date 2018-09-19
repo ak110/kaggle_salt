@@ -161,9 +161,11 @@ def _get_meta_features(data_name, X, d, cv_index=None):
     """子モデルのout-of-fold predictionsを取得。"""
     import bin_nas
     import bin_ir2
-    import darknet53_hc
-    import darknet53_hc_112
-    import darknet53_res
+    import darknet53_hc  # 0.853
+    import darknet53_hc_112  # 0.853
+    import darknet53_hc_224  # 0.852
+    import darknet53_hc_224_r  # 0.848
+    import darknet53_res  # 0.848
 
     def _get(m):
         if data_name == 'val':
@@ -176,6 +178,8 @@ def _get_meta_features(data_name, X, d, cv_index=None):
         X / 255,
         _get(darknet53_hc.predict_all(data_name, X, d)),
         _get(darknet53_hc_112.predict_all(data_name, X, d)),
+        _get(darknet53_hc_224.predict_all(data_name, X, d)),
+        _get(darknet53_hc_224_r.predict_all(data_name, X, d)),
         _get(darknet53_res.predict_all(data_name, X, d)),
     ], axis=-1)
     X_bin = np.concatenate([
