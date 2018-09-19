@@ -92,8 +92,10 @@ def _create_network(input_dims, bin_dims):
     t = keras.layers.Reshape((101, 101, 1 + bin_dims))(t)
     x = keras.layers.concatenate([x, t])
     x = builder.conv2d(64, 1, use_act=False)(x)
-    for _ in range(4):
-        x = builder.res_block(64, dropout=0.25)(x)
+    x = builder.res_block(64, dropout=0.25)(x)
+    x = builder.res_block(64, dropout=0.25)(x)
+    x = builder.res_block(64, dropout=0.25)(x)
+    x = builder.res_block(64, dropout=0.25)(x)
     x = builder.bn_act()(x)
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
 

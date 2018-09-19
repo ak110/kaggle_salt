@@ -10,3 +10,8 @@ for d in models/* ; do
         echo "rm -rf $d"
     fi
 done
+for d in reports/*.txt ; do
+    if [ ! -f "$(basename $d .txt).py" ] ; then
+        echo "rm -f $d"
+    fi
+done
