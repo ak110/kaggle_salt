@@ -1,5 +1,5 @@
 #!/bin/bash
-echo -e '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n'
+echo -e '\n\n\n'
 for d in cache/val/*.pkl cache/test/*.pkl ; do
     if [ ! -f $(basename $d .pkl).py ] ; then
         echo "rm -f $d"
@@ -15,3 +15,4 @@ for d in reports/*.txt ; do
         echo "rm -f $d"
     fi
 done
+echo -e '\n\n\n'
