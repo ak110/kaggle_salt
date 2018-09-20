@@ -13,8 +13,10 @@
 
 ## memo
 
+- hypercolumn + input (+/-0)
 - tail residual block (+0.001)
 - scse block (+0.004)
+- hypercolumn (+0.006)
 - 112 == 224 (+0.001)
 - padding > resize (+0.004)
 - lovasz > BCE (+0.010)
