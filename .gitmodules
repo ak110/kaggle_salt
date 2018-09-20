@@ -1,3 +1,6 @@
 [submodule "solution/pytoolkit"]
 	path = solution/pytoolkit
 	url = https://github.com/ak110/pytoolkit.git
+[submodule "solution/classification_models"]
+	path = solution/classification_models
+	url = https://github.com/qubvel/classification_models.git
