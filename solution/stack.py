@@ -63,7 +63,7 @@ def _train(args):
     # gen.add(tk.generator.ProcessOutput(lambda y: tk.ndimage.resize(y, 101, 101)))
 
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
-    model.compile(sgd_lr=0.01 / 128, loss=tk.dl.losses.lovasz_hinge, metrics=[tk.dl.metrics.binary_accuracy])
+    model.compile(sgd_lr=0.01 / 128, loss=mixed_loss, metrics=[tk.dl.metrics.binary_accuracy])
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
@@ -189,6 +189,14 @@ def _get_meta_features(data_name, X, d, cv_index=None):
         _get(bin_ir2.predict_all(data_name, X, d)),
     ], axis=-1)
     return X, X_bin
+
+
+def mixed_loss(y_true, y_pred):
+    """lovasz_hinge + BCE"""
+    import keras
+    loss1 = tk.dl.losses.lovasz_hinge(y_true, y_pred)
+    loss2 = keras.losses.binary_crossentropy(y_true, y_pred)
+    return loss1 * 0.9 + loss2 * 0.1
 
 
 if __name__ == '__main__':
