@@ -13,12 +13,14 @@
 
 ## memo
 
+- binary upsampling hypercolumn (+0.001)
 - hypercolumn + input (+/-0)
 - tail residual block (+0.001)
 - scse block (+0.004)
 - hypercolumn (+0.006)
 - 112 == 224 (+0.001)
 - padding > resize (+0.004)
+- lovasz > `lovasz*0.9 + BCE*0.1` (+0.003)
 - lovasz > BCE (+0.010)
 - stack.py: bin-ir2 (+0.001)
 
