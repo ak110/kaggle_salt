@@ -63,7 +63,7 @@ def _train(args):
     # gen.add(tk.generator.ProcessOutput(lambda y: tk.ndimage.resize(y, 101, 101)))
 
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
-    model.compile(sgd_lr=0.01 / 128, loss=mixed_loss, metrics=[tk.dl.metrics.binary_accuracy])
+    model.compile(sgd_lr=0.1 / 128, loss=tk.dl.losses.lovasz_hinge, metrics=[tk.dl.metrics.binary_accuracy])
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
@@ -92,10 +92,9 @@ def _create_network(input_dims, bin_dims):
     t = keras.layers.Reshape((101, 101, 1 + bin_dims))(t)
     x = keras.layers.concatenate([x, t])
     x = builder.conv2d(64, 1, use_act=False)(x)
-    x = builder.res_block(64, dropout=0.25)(x)
-    x = builder.res_block(64, dropout=0.25)(x)
-    x = builder.res_block(64, dropout=0.25)(x)
-    x = builder.res_block(64, dropout=0.25)(x)
+    x = builder.res_block(64)(x)
+    x = builder.res_block(64)(x)
+    x = builder.res_block(64)(x)
     x = builder.bn_act()(x)
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
 
@@ -163,11 +162,10 @@ def _get_meta_features(data_name, X, d, cv_index=None):
     """子モデルのout-of-fold predictionsを取得。"""
     import bin_nas
     import bin_ir2
-    import darknet53_hc  # 0.853
+    import darknet53_bu  # 0.855
     import darknet53_hc_112  # 0.853
     import darknet53_hc_112_b  # 0.854
-    import darknet53_hc_224  # 0.852
-    import darknet53_res  # 0.848
+    import darknet53_in  # 0.854
 
     def _get(m):
         if data_name == 'val':
@@ -178,25 +176,16 @@ def _get_meta_features(data_name, X, d, cv_index=None):
 
     X = np.concatenate([
         X / 255,
-        _get(darknet53_hc.predict_all(data_name, X, d)),
+        _get(darknet53_bu.predict_all(data_name, X, d)),
         _get(darknet53_hc_112.predict_all(data_name, X, d)),
         _get(darknet53_hc_112_b.predict_all(data_name, X, d)),
-        _get(darknet53_hc_224.predict_all(data_name, X, d)),
-        _get(darknet53_res.predict_all(data_name, X, d)),
+        _get(darknet53_in.predict_all(data_name, X, d)),
     ], axis=-1)
     X_bin = np.concatenate([
         _get(bin_nas.predict_all(data_name, X, d)),
         _get(bin_ir2.predict_all(data_name, X, d)),
     ], axis=-1)
     return X, X_bin
-
-
-def mixed_loss(y_true, y_pred):
-    """lovasz_hinge + BCE"""
-    import keras
-    loss1 = tk.dl.losses.lovasz_hinge(y_true, y_pred)
-    loss2 = keras.losses.binary_crossentropy(y_true, y_pred)
-    return loss1 * 0.9 + loss2 * 0.1
 
 
 if __name__ == '__main__':
