@@ -14,7 +14,6 @@
 ## memo
 
 - binary upsampling hypercolumn (+0.001)
-- hypercolumn + input (+/-0)
 - tail residual block (+0.001)
 - scse block (+0.004)
 - hypercolumn (+0.006)
