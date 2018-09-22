@@ -120,12 +120,12 @@ def _create_network():
         up_list.append(builder.conv2d(32, 1)(x))
 
     x = keras.layers.concatenate([
-        keras.layers.UpSampling2D(16)(up_list[0]),
-        keras.layers.UpSampling2D(8)(up_list[1]),
-        keras.layers.UpSampling2D(4)(up_list[2]),
-        keras.layers.UpSampling2D(2)(up_list[3]),
+        tk.dl.layers.resize2d()((112, 112))(up_list[0]),
+        tk.dl.layers.resize2d()((112, 112))(up_list[1]),
+        tk.dl.layers.resize2d()((112, 112))(up_list[2]),
+        tk.dl.layers.resize2d()((112, 112))(up_list[3]),
         up_list[4],
-        keras.layers.AveragePooling2D()(up_list[5]),
+        tk.dl.layers.resize2d()((112, 112))(up_list[5]),
     ])  # 112
 
     x = builder.conv2d(64, use_act=False)(x)
