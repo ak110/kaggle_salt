@@ -95,6 +95,8 @@ def _create_network(input_dims, bin_dims):
     x = builder.res_block(64)(x)
     x = builder.res_block(64)(x)
     x = builder.res_block(64)(x)
+    x = builder.res_block(64)(x)
+    x = builder.res_block(64)(x)
     x = builder.bn_act()(x)
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
 
