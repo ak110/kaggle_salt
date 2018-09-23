@@ -150,9 +150,9 @@ def _predict():
     logger = tk.log.get(__name__)
     X_test, d_test = data.load_test_data()
     threshold = float((MODELS_DIR / 'threshold.txt').read_text())
-    pred = np.mean(pred_list, axis=0) > threshold
+    logger.info(f'threshold = {threshold:.3f}')
     pred_list = predict_all('test', X_test, d_test)
-    pred = np.mean(pred_list, axis=0) > 0.5
+    pred = np.mean(pred_list, axis=0) > threshold
     data.save_submission(MODELS_DIR / 'submission.csv', pred)
 
 
