@@ -13,6 +13,7 @@
 
 ## memo
 
+- multiple output (bin, mask) (-0.005)
 - binary upsampling hypercolumn (+0.001)
 - tail residual block (+0.001)
 - scse block (+0.004)
