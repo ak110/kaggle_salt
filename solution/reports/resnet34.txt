@@ -1,0 +1,8 @@
+[INFO ] gpu count = 4 <pytoolkit.pytoolkit.dl.models:models.py:25>
+[INFO ] Accuracy: 0.957 <__main__:ml.py:670>
+[INFO ] F1-score: 0.912 <__main__:ml.py:671>
+[INFO ] AUC:      0.987 <__main__:ml.py:672>
+[INFO ] Logloss:  0.140 <__main__:ml.py:673>
+[INFO ] score: 0.826 (threshold: 0.500) <__main__:evaluation.py:17>
+[INFO ] IoU mean:  0.788 <__main__:evaluation.py:49>
+[INFO ] Acc empty: 0.956 <__main__:evaluation.py:54>
