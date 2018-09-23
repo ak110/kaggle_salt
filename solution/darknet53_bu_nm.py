@@ -142,7 +142,7 @@ def _validate():
     logger = tk.log.get(__name__)
     X, d, y = data.load_train_data()
     pred = predict_all('val', X, d)
-    evaluation.log_evaluation(y, pred, print_fn=logger.info)
+    evaluation.log_evaluation(y, pred, print_fn=logger.info, search_th=True)
 
 
 @tk.log.trace()
