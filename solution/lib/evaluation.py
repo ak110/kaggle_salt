@@ -13,14 +13,14 @@ def log_evaluation(y_val, pred_val, print_fn=None, search_th=False):
 
     # 閾値探索＆スコア表示
     if search_th:
-        threshold_list = np.linspace(0.4, 0.6, 20)
+        threshold_list = np.linspace(0.3, 0.7, 100)
         score_list = []
         for th in tk.tqdm(threshold_list, desc='threshold'):
             score = compute_score(np.int32(y_val > 0.5), np.int32(pred_val > th))
             score_list.append(score)
         best_index = np.argmax(score_list)
         print_fn('scores:')
-        for th, score in zip(threshold_list, score_list):
+        for th, score in zip(threshold_list[::10], score_list[::10]):
             print_fn(f'  threshold={th:.3f}: score={score:.3f}')
         threshold = threshold_list[best_index]
         print_fn(f'max score: {score_list[best_index]:.3f} (threshold: {threshold:.3f})')
