@@ -167,7 +167,7 @@ def _get_meta_features(data_name, X, d, cv_index=None):
     """子モデルのout-of-fold predictionsを取得。"""
     import bin_nas
     import reg_nas
-    import darknet53_bu  # 0.855
+    import darknet53_bu  # 0.856
     import darknet53_hc_112  # 0.853
     import darknet53_hc_112_b  # 0.854
     import darknet53_in  # 0.854
