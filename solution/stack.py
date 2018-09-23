@@ -110,7 +110,8 @@ def _validate():
     logger = tk.log.get(__name__)
     X, d, y = data.load_train_data()
     pred = predict_all('val', X, d)
-    evaluation.log_evaluation(y, pred, print_fn=logger.info, search_th=True)
+    threshold = evaluation.log_evaluation(y, pred, print_fn=logger.info, search_th=True)
+    (MODELS_DIR / 'threshold.txt').write_text(str(threshold))
 
 
 @tk.log.trace()
@@ -118,8 +119,10 @@ def _predict():
     """予測。"""
     logger = tk.log.get(__name__)
     X_test, d_test = data.load_test_data()
+    threshold = float((MODELS_DIR / 'threshold.txt').read_text())
+    logger.info(f'threshold = {threshold:.3f}')
     pred_list = sum([predict_all('test', X_test, d_test, chilld_cv_index) for chilld_cv_index in range(5)], [])
-    pred = np.mean(pred_list, axis=0) > 0.5
+    pred = np.mean(pred_list, axis=0) > threshold
     data.save_submission(MODELS_DIR / 'submission.csv', pred)
 
 
