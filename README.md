@@ -13,6 +13,8 @@
 
 ## memo
 
+- mixup (-0.002)
+- lovasz loss elu+1 (-0.002)
 - multiple output (bin, mask) (-0.005)
 - binary upsampling hypercolumn (+0.001)
 - tail residual block (+0.001)

@@ -14,7 +14,7 @@ REPORTS_DIR = pathlib.Path('reports')
 CV_COUNT = 5
 INPUT_SIZE = (101, 101)
 BATCH_SIZE = 64
-EPOCHS = 100
+EPOCHS = 30
 
 
 def _main():
@@ -25,7 +25,7 @@ def _main():
     args = parser.parse_args()
     with tk.dl.session(use_horovod=args.mode == 'train'):
         if args.mode == 'check':
-            _create_network(input_dims=4, bin_dims=2)[0].summary()
+            _create_network(input_dims=8)[0].summary()
         elif args.mode == 'train':
             tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
             _train(args)
@@ -47,20 +47,19 @@ def _train(args):
     (MODELS_DIR / 'split_seed.txt').write_text(str(split_seed))
 
     X, d, y = data.load_train_data()
-    X, X_bin = _get_meta_features('val', X, d)
+    X = _get_meta_features('val', X, d)
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)
-    (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti], X_bin[ti]], y[ti]), ([X[vi], d[vi], X_bin[vi]], y[vi])
+    (X_train, y_train), (X_val, y_val) = (X[ti], y[ti]), (X[vi], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
 
-    network, _ = _create_network(input_dims=X.shape[-1], bin_dims=X_bin.shape[-1])
+    network, _ = _create_network(input_dims=X.shape[-1])
 
-    gen = tk.generator.Generator(multiple_input=True)
-    gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True), input_index=0)
-    # gen.add(tk.image.Padding(probability=1, with_output=True), input_index=0)
-    # gen.add(tk.image.RandomRotate(probability=0.25, with_output=True), input_index=0)
-    # gen.add(tk.image.RandomCrop(probability=1, with_output=True), input_index=0)
-    # gen.add(tk.image.Resize(INPUT_SIZE), input_index=0)
-    # gen.add(tk.generator.ProcessOutput(lambda y: tk.ndimage.resize(y, 101, 101)))
+    gen = tk.generator.Generator()
+    gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True))
+    # gen.add(tk.image.Padding(probability=1, with_output=True))
+    # gen.add(tk.image.RandomRotate(probability=0.25, with_output=True))
+    # gen.add(tk.image.RandomCrop(probability=1, with_output=True))
+    # gen.add(tk.image.Resize((101, 101), with_output=True))
 
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
     model.compile(sgd_lr=0.01 / 128, loss=tk.dl.losses.lovasz_hinge, metrics=[tk.dl.metrics.binary_accuracy])
@@ -69,36 +68,24 @@ def _train(args):
         X_train, y_train, validation_data=(X_val, y_val),
         epochs=EPOCHS,
         tsv_log_path=MODELS_DIR / f'history.fold{args.cv_index}.tsv',
-        cosine_annealing=True, mixup=True)
+        cosine_annealing=True, mixup=False)
     model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5', include_optimizer=False)
 
     if tk.dl.hvd.is_master():
         evaluation.log_evaluation(y_val, model.predict(X_val))
 
 
-def _create_network(input_dims, bin_dims):
+def _create_network(input_dims):
     """ネットワークを作って返す。"""
     import keras
     builder = tk.dl.networks.Builder()
 
     inputs = [
         builder.input_tensor(INPUT_SIZE + (input_dims,)),
-        builder.input_tensor((1,)),  # depths
-        builder.input_tensor((bin_dims,)),  # bin
     ]
     x = inputs[0]
-    t = keras.layers.concatenate([inputs[1], inputs[2]])
-    t = keras.layers.RepeatVector(101 * 101)(t)
-    t = keras.layers.Reshape((101, 101, 1 + bin_dims))(t)
-    x = keras.layers.concatenate([x, t])
-    x = builder.conv2d(64, 1, use_act=False)(x)
-    x = builder.res_block(64)(x)
-    x = builder.res_block(64)(x)
-    x = builder.res_block(64)(x)
-    x = builder.res_block(64)(x)
-    x = builder.res_block(64)(x)
-    x = builder.bn_act()(x)
-    x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
+    x = builder.conv2d(128, 1, use_bias=True, use_bn=False)(x)
+    x = builder.conv2d(1, 1, use_bias=True, use_bn=False, activation='sigmoid')(x)
 
     network = keras.models.Model(inputs, x)
     return network, None
@@ -129,16 +116,16 @@ def _predict():
 def predict_all(data_name, X, d, chilld_cv_index=None):
     """予測。"""
     if data_name == 'val':
-        X_val, bin_val = _get_meta_features(data_name, X, d)
+        X_val = _get_meta_features(data_name, X, d)
         X_list, vi_list = [], []
         split_seed = int((MODELS_DIR / 'split_seed.txt').read_text())
         for cv_index in range(CV_COUNT):
             _, vi = tk.ml.cv_indices(X_val, None, cv_count=CV_COUNT, cv_index=cv_index, split_seed=split_seed, stratify=False)
-            X_list.append([X_val[vi], d[vi], bin_val[vi]])
+            X_list.append(X_val[vi])
             vi_list.append(vi)
     else:
-        X_test, bin_test = _get_meta_features(data_name, X, d, chilld_cv_index)
-        X_list = [[X_test, d, bin_test]] * CV_COUNT
+        X_test = _get_meta_features(data_name, X, d, chilld_cv_index)
+        X_list = [X_test] * CV_COUNT
 
     gen = tk.generator.SimpleGenerator()
     model = tk.dl.models.Model.load(MODELS_DIR / f'model.fold0.h5', gen, batch_size=BATCH_SIZE, multi_gpu=True)
@@ -148,9 +135,9 @@ def predict_all(data_name, X, d, chilld_cv_index=None):
         if cv_index != 0:
             model.load_weights(MODELS_DIR / f'model.fold{cv_index}.h5')
 
-        X_t, d_t, bin_t = X_list[cv_index]
-        pred1 = model.predict([X_t, d_t, bin_t], verbose=0)
-        pred2 = model.predict([X_t[:, :, ::-1, :], d_t, bin_t], verbose=0)[:, :, ::-1, :]
+        X_t = X_list[cv_index]
+        pred1 = model.predict(X_t, verbose=0)
+        pred2 = model.predict(X_t[:, :, ::-1, :], verbose=0)[:, :, ::-1, :]
         pred = np.mean([pred1, pred2], axis=0)
         pred_list.append(pred)
 
@@ -181,16 +168,15 @@ def _get_meta_features(data_name, X, d, cv_index=None):
 
     X = np.concatenate([
         X / 255,
+        np.repeat(d, 101 * 101).reshape(len(X), 101, 101, 1),
+        np.repeat(_get(bin_nas.predict_all(data_name, X, d)), 101 * 101).reshape(len(X), 101, 101, 1),
+        np.repeat(_get(reg_nas.predict_all(data_name, X, d)), 101 * 101).reshape(len(X), 101, 101, 1),
         _get(darknet53_bu.predict_all(data_name, X, d)),
         _get(darknet53_hc_112.predict_all(data_name, X, d)),
         _get(darknet53_hc_112_b.predict_all(data_name, X, d)),
         _get(darknet53_in.predict_all(data_name, X, d)),
-    ], axis=-1) * 2 - 1
-    X_bin = np.concatenate([
-        _get(bin_nas.predict_all(data_name, X, d)),
-        _get(reg_nas.predict_all(data_name, X, d)),
-    ], axis=-1) * 2 - 1
-    return X, X_bin
+    ], axis=-1)
+    return X
 
 
 if __name__ == '__main__':
