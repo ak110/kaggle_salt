@@ -70,7 +70,7 @@ def _train(args):
         epochs=EPOCHS,
         tsv_log_path=MODELS_DIR / f'history.fold{args.cv_index}.tsv',
         cosine_annealing=True, mixup=True)
-    model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5')
+    model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5', include_optimizer=False)
 
     if tk.dl.hvd.is_master():
         evaluation.log_evaluation(y_val[1], model.predict(X_val)[1])

@@ -64,7 +64,7 @@ def _train(args):
         epochs=EPOCHS,
         tsv_log_path=MODELS_DIR / f'history.fold{args.cv_index}.tsv',
         cosine_annealing=True, mixup=True)
-    model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5')
+    model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5', include_optimizer=False)
 
     if tk.dl.hvd.is_master():
         tk.ml.print_classification_metrics(y_val, model.predict(X_val))
