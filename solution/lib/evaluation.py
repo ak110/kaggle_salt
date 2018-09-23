@@ -40,13 +40,16 @@ def compute_score(y_true, y_pred):
     obj = np.sum(y_true, axis=(1, 2, 3)) > 0
     empty = np.logical_not(obj)
     pred_empty = np.sum(y_pred, axis=(1, 2, 3)) == 0
+    tn = np.logical_and(empty, pred_empty)
+
+    inter = np.sum(np.logical_and(y_true, y_pred), axis=(1, 2, 3))
+    union = np.sum(np.logical_or(y_true, y_pred), axis=(1, 2, 3))
+    iou = inter / np.maximum(union, 1)
+
     prec_list = []
     for threshold in np.arange(0.5, 1.0, 0.05):
-        inter = np.sum(np.logical_and(y_true, y_pred), axis=(1, 2, 3))
-        union = np.sum(np.logical_or(y_true, y_pred), axis=(1, 2, 3))
-        iou = inter / np.maximum(union, 1)
         pred_obj = iou > threshold
-        match = np.logical_and(obj, pred_obj) + np.logical_and(empty, pred_empty)
+        match = np.logical_and(obj, pred_obj) + tn
         prec_list.append(np.sum(match) / len(y_true))
     return np.mean(prec_list)
 

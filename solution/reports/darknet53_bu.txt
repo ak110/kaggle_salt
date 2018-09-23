@@ -24,5 +24,5 @@
 [INFO ]   threshold=0.589: score=0.853 <__main__:evaluation.py:24>
 [INFO ]   threshold=0.600: score=0.853 <__main__:evaluation.py:24>
 [INFO ] max score: 0.856 (threshold: 0.495) <__main__:evaluation.py:26>
-[INFO ] IoU mean:  0.824 <__main__:evaluation.py:64>
-[INFO ] Acc empty: 0.969 <__main__:evaluation.py:69>
+[INFO ] IoU mean:  0.824 <__main__:evaluation.py:67>
+[INFO ] Acc empty: 0.969 <__main__:evaluation.py:72>
