@@ -14,7 +14,7 @@ REPORTS_DIR = pathlib.Path('reports')
 CV_COUNT = 5
 INPUT_SIZE = (101, 101)
 BATCH_SIZE = 64
-EPOCHS = 30
+EPOCHS = 20
 
 
 def _main():
@@ -68,7 +68,7 @@ def _train(args):
         X_train, y_train, validation_data=(X_val, y_val),
         epochs=EPOCHS,
         tsv_log_path=MODELS_DIR / f'history.fold{args.cv_index}.tsv',
-        cosine_annealing=True, mixup=False)
+        cosine_annealing=True, mixup=False, lr_warmup=False)
     model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5', include_optimizer=False)
 
     if tk.dl.hvd.is_master():
@@ -157,11 +157,8 @@ def _get_meta_features(data_name, X, d, cv_index=None):
     import bin_nas
     import reg_nas
     import darknet53_bu  # 0.856
-    import darknet53_bu_bin  # 0.851
     import darknet53_bu_nm  # 0.858
     import darknet53_elup1_nn  # 0.863
-    import darknet53_hc_112_b  # 0.854
-    import darknet53_in  # 0.854
 
     def _get(m):
         if data_name == 'val':
@@ -176,11 +173,8 @@ def _get_meta_features(data_name, X, d, cv_index=None):
         np.repeat(_get(bin_nas.predict_all(data_name, X, d)), 101 * 101).reshape(len(X), 101, 101, 1),
         np.repeat(_get(reg_nas.predict_all(data_name, X, d)), 101 * 101).reshape(len(X), 101, 101, 1),
         _get(darknet53_bu.predict_all(data_name, X, d)),
-        _get(darknet53_bu_bin.predict_all(data_name, X, d)),
         _get(darknet53_bu_nm.predict_all(data_name, X, d)),
         _get(darknet53_elup1_nn.predict_all(data_name, X, d)),
-        _get(darknet53_hc_112_b.predict_all(data_name, X, d)),
-        _get(darknet53_in.predict_all(data_name, X, d)),
     ], axis=-1)
     return X
 
