@@ -78,12 +78,14 @@ def _train(args):
 def _create_network(input_dims):
     """ネットワークを作って返す。"""
     import keras
+    import keras.backend as K
     builder = tk.dl.networks.Builder()
 
     inputs = [
         builder.input_tensor(INPUT_SIZE + (input_dims,)),
     ]
     x = inputs[0]
+    x = keras.layers.concatenate([x, tk.dl.layers.channel_pair_2d()()(x)])
     x = builder.conv2d(128, 1, use_bias=True, use_bn=False)(x)
     x = builder.conv2d(1, 1, use_bias=True, use_bn=False, activation='sigmoid')(x)
 
