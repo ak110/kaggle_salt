@@ -158,8 +158,8 @@ def _get_meta_features(data_name, X, d, cv_index=None):
     import reg_nas
     import darknet53_bu  # 0.856
     import darknet53_bu_bin  # 0.851
-    import darknet53_bu_elup1  # 0.854
     import darknet53_bu_nm  # 0.858
+    import darknet53_elup1_nn  # 0.863
     import darknet53_hc_112_b  # 0.854
     import darknet53_in  # 0.854
 
@@ -177,8 +177,8 @@ def _get_meta_features(data_name, X, d, cv_index=None):
         np.repeat(_get(reg_nas.predict_all(data_name, X, d)), 101 * 101).reshape(len(X), 101, 101, 1),
         _get(darknet53_bu.predict_all(data_name, X, d)),
         _get(darknet53_bu_bin.predict_all(data_name, X, d)),
-        _get(darknet53_bu_elup1.predict_all(data_name, X, d)),
         _get(darknet53_bu_nm.predict_all(data_name, X, d)),
+        _get(darknet53_elup1_nn.predict_all(data_name, X, d)),
         _get(darknet53_hc_112_b.predict_all(data_name, X, d)),
         _get(darknet53_in.predict_all(data_name, X, d)),
     ], axis=-1)
