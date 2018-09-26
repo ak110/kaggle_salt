@@ -73,7 +73,6 @@ def _train(args):
 def _create_network():
     """ネットワークを作って返す。"""
     import keras
-    from lib import layers
     builder = tk.dl.networks.Builder()
 
     inputs = [
@@ -81,8 +80,9 @@ def _create_network():
         builder.input_tensor((1,)),  # depths
     ]
     x = inputs[0]
-    x = layers.CustomPreProcess(mode='caffe')(x)
     x = x_in = tk.dl.layers.resize2d()((128, 128), interpolation='bicubic')(x)  # 128
+    x = keras.layers.concatenate([x, x, x])
+    x = builder.preprocess(mode='caffe')(x)
     base_network = ResNet34(include_top=False, input_shape=(224, 224, 3), input_tensor=x, weights='imagenet')
     lr_multipliers = {l: 0.1 for l in base_network.layers}
     down_list = []
