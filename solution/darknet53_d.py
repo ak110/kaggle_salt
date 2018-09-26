@@ -80,8 +80,8 @@ def _create_network():
         builder.input_tensor((1,)),  # depths
     ]
     x = inputs[0]
+    x = layers.CustomPreProcess(mode='div255')(x)
     x = tk.dl.layers.pad2d()(((5, 6), (5, 6)), mode='reflect')(x)  # 112
-    x = layers.CustomPreProcess()(x)
     base_network = tk.applications.darknet53.darknet53(include_top=False, input_tensor=x, for_small=True)
     lr_multipliers = {l: 0.1 for l in base_network.layers}
     down_list = []
