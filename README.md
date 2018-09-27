@@ -13,6 +13,8 @@
 
 ## memo
 
+- R,G=input B=depth (-0.010)
+- gate (-0.006)
 - mixup (-0.002)
 - lovasz loss elu+1 with mixup (-0.002)
 - multiple output (bin, mask) (-0.005)

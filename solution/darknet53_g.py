@@ -6,7 +6,6 @@ import numpy as np
 import sklearn.externals.joblib as joblib
 
 import pytoolkit as tk
-from classification_models.classification_models import ResNet34
 from lib import data, generator, evaluation
 
 MODEL_NAME = pathlib.Path(__file__).stem
@@ -80,31 +79,32 @@ def _create_network():
         builder.input_tensor((1,)),  # depths
     ]
     x = inputs[0]
-    x = x_in = tk.dl.layers.resize2d()((128, 128), interpolation='bicubic')(x)  # 128
+    x = builder.preprocess(mode='div255')(x)
+    x = tk.dl.layers.pad2d()(((5, 6), (5, 6)), mode='reflect')(x)  # 112
     x = keras.layers.concatenate([x, x, x])
-    x = builder.preprocess(mode='caffe')(x)
-    base_network = ResNet34(include_top=False, input_shape=(224, 224, 3), input_tensor=x, weights='imagenet')
-    lr_multipliers = {l: 0.03 for l in base_network.layers}
+    base_network = tk.applications.darknet53.darknet53(include_top=False, input_tensor=x, for_small=True)
+    lr_multipliers = {l: 0.1 for l in base_network.layers}
     down_list = []
-    down_list.append(x_in)  # stage 0: 128
-    down_list.append(base_network.get_layer(name='relu0').output)  # stage 1: 64
-    down_list.append(base_network.get_layer(name='stage2_unit1_relu1').output)  # stage 2: 32
-    down_list.append(base_network.get_layer(name='stage3_unit1_relu1').output)  # stage 3: 16
-    down_list.append(base_network.get_layer(name='stage4_unit1_relu1').output)  # stage 4: 8
-    down_list.append(base_network.get_layer(name='relu1').output)  # stage 5: 4
+    down_list.append(base_network.get_layer(name='add_1').output)  # stage 1: 112
+    down_list.append(base_network.get_layer(name='add_3').output)  # stage 2: 56
+    down_list.append(base_network.get_layer(name='add_11').output)  # stage 3: 28
+    down_list.append(base_network.get_layer(name='add_19').output)  # stage 4: 14
+    down_list.append(base_network.get_layer(name='add_23').output)  # stage 5: 7
 
     x = base_network.outputs[0]
     x = keras.layers.GlobalAveragePooling2D()(x)
+    x = builder.bn(center=False, scale=False)(x)
     x = keras.layers.concatenate([x, inputs[1]])
     x = builder.dense(256)(x)
     x = builder.act()(x)
-    x = builder.dense(4 * 4 * 128)(x)
+    gate = builder.dense(1, activation='sigmoid')(x)
+    x = builder.dense(7 * 7 * 32)(x)
     x = builder.act()(x)
-    x = keras.layers.Reshape((2, 2, -1))(x)
+    x = keras.layers.Reshape((1, 1, -1))(x)
 
     up_list = []
-    for stage, (d, filters) in list(enumerate(zip(down_list, [16, 32, 64, 128, 256, 512])))[::-1]:
-        x = tk.dl.layers.subpixel_conv2d()(scale=2)(x)
+    for stage, (d, filters) in list(enumerate(zip(down_list, [32, 64, 128, 256, 512])))[::-1]:
+        x = tk.dl.layers.subpixel_conv2d()(scale=2 if stage != 4 else 7)(x)
         x = builder.conv2d(filters, 1, use_act=False)(x)
         d = builder.conv2d(filters, 1, use_act=False)(d)
         x = keras.layers.add([x, d])
@@ -115,21 +115,23 @@ def _create_network():
         up_list.append(builder.conv2d(32, 1)(x))
 
     x = keras.layers.concatenate([
-        tk.dl.layers.resize2d()((101, 101))(up_list[0]),
-        tk.dl.layers.resize2d()((101, 101))(up_list[1]),
-        tk.dl.layers.resize2d()((101, 101))(up_list[2]),
-        tk.dl.layers.resize2d()((101, 101))(up_list[3]),
-        tk.dl.layers.resize2d()((101, 101))(up_list[4]),
-        tk.dl.layers.resize2d()((101, 101))(up_list[5]),
-    ])  # 101
+        tk.dl.layers.resize2d()((112, 112))(up_list[0]),
+        tk.dl.layers.resize2d()((112, 112))(up_list[1]),
+        tk.dl.layers.resize2d()((112, 112))(up_list[2]),
+        tk.dl.layers.resize2d()((112, 112))(up_list[3]),
+        up_list[4],
+    ])  # 112
 
     x = builder.conv2d(64, use_act=False)(x)
     x = builder.res_block(64)(x)
     x = builder.res_block(64)(x)
     x = builder.res_block(64)(x)
     x = builder.bn_act()(x)
+    x = builder.scse_block(64)(x)
 
+    x = keras.layers.Cropping2D(((5, 6), (5, 6)))(x)  # 101
     x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
+    x = keras.layers.multiply([x, gate])
     network = keras.models.Model(inputs, x)
     return network, lr_multipliers
 
