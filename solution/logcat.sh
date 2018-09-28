@@ -2,7 +2,7 @@
 echo -e '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n'
 for d in models/* ; do
     if [ -d $d ] ; then
-        echo "====================== $d ======================"
+        echo "====================== $(basename $d).py ======================"
         if [ -f reports/$(basename $d).txt -a "$1" != "--all" ] ; then
             grep --with-filename ' score:' reports/$(basename $d).txt || \
                 grep --with-filename 'Accuracy:' reports/$(basename $d).txt || \
