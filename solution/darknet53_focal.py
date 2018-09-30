@@ -47,16 +47,16 @@ def _train(args):
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     (MODELS_DIR / 'split_seed.txt').write_text(str(split_seed))
 
-    X, _, y = data.load_train_data()
+    X, d, y = data.load_train_data()
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)
-    (X_train, y_train), (X_val, y_val) = (X[ti], y[ti]), (X[vi], y[vi])
+    (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti]], y[ti]), ([X[vi], d[vi]], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
 
     network, lr_multipliers = _create_network()
 
-    gen = generator.create_generator(mode='ss', multiple_input=False)
+    gen = generator.create_generator(mode='ss')
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
-    model.compile(sgd_lr=0.5 / 256, loss=tk.dl.losses.binary_focal_loss, metrics=[tk.dl.metrics.binary_accuracy], lr_multipliers=lr_multipliers)
+    model.compile(sgd_lr=0.5 / 256, loss=tk.dl.losses.binary_focal_loss(alpha=0.5), metrics=[tk.dl.metrics.binary_accuracy], lr_multipliers=lr_multipliers, clipnorm=10.0)
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
@@ -76,6 +76,7 @@ def _create_network():
 
     inputs = [
         builder.input_tensor(INPUT_SIZE + (1,)),
+        builder.input_tensor((1,)),  # depths
     ]
     x = inputs[0]
     x = builder.preprocess(mode='div255')(x)
@@ -92,6 +93,7 @@ def _create_network():
 
     x = base_network.outputs[0]
     x = keras.layers.GlobalAveragePooling2D()(x)
+    x = keras.layers.concatenate([x, inputs[1]])
     x = builder.dense(256)(x)
     x = builder.act()(x)
     x = builder.dense(7 * 7 * 32)(x)
@@ -163,11 +165,11 @@ def predict_all(data_name, X, d):
         split_seed = int((MODELS_DIR / 'split_seed.txt').read_text())
         for cv_index in range(CV_COUNT):
             _, vi = tk.ml.cv_indices(X, None, cv_count=CV_COUNT, cv_index=cv_index, split_seed=split_seed, stratify=False)
-            X_list.append(X[vi])
+            X_list.append([X[vi], d[vi]])
             vi_list.append(vi)
     else:
-        X, _ = data.load_test_data()
-        X_list = [X] * CV_COUNT
+        X, d = data.load_test_data()
+        X_list = [[X, d]] * CV_COUNT
 
     gen = tk.generator.SimpleGenerator()
     model = tk.dl.models.Model.load(MODELS_DIR / f'model.fold0.h5', gen, batch_size=BATCH_SIZE, multi_gpu=True)
@@ -177,9 +179,9 @@ def predict_all(data_name, X, d):
         if cv_index != 0:
             model.load_weights(MODELS_DIR / f'model.fold{cv_index}.h5')
 
-        X_t = X_list[cv_index]
-        pred1 = model.predict(X_t, verbose=0)
-        pred2 = model.predict(X_t[:, :, ::-1, :], verbose=0)[:, :, ::-1, :]
+        X_t, d_t = X_list[cv_index]
+        pred1 = model.predict([X_t, d_t], verbose=0)
+        pred2 = model.predict([X_t[:, :, ::-1, :], d_t], verbose=0)[:, :, ::-1, :]
         pred = np.mean([pred1, pred2], axis=0)
         pred_list.append(pred)
 

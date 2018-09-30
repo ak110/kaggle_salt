@@ -56,7 +56,7 @@ def _train(args):
 
     gen = generator.create_generator(mode='ss')
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
-    model.compile(sgd_lr=0.1 / 128, loss=tk.dl.losses.lovasz_hinge_swish, metrics=[tk.dl.metrics.binary_accuracy], lr_multipliers=lr_multipliers)
+    model.compile(sgd_lr=0.1 / 128, loss=tk.dl.losses.lovasz_hinge_swish, metrics=[tk.dl.metrics.binary_accuracy], lr_multipliers=lr_multipliers, clipnorm=10.0)
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
