@@ -160,8 +160,6 @@ def _get_meta_features(data_name, X, d, cv_index=None):
     import darknet53_clipnorm  # 0.859
     import darknet53_large  # 0.859
     import darknet53_taila  # 0.860
-    #import darknet53_focal  # 0.828
-    #import darknet53_bce  # 0.829
 
     def _get(m):
         if data_name == 'val':
@@ -180,8 +178,6 @@ def _get_meta_features(data_name, X, d, cv_index=None):
             _get(darknet53_large.predict_all(data_name, X, d)),
             _get(darknet53_taila.predict_all(data_name, X, d)),
         ], weights=[1, 1, 1, 1], axis=0),
-        #_get(darknet53_focal.predict_all(data_name, X, d)),
-        #_get(darknet53_bce.predict_all(data_name, X, d)),
     ], axis=-1) * 2 - 1
     return X
 

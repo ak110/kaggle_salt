@@ -16,7 +16,7 @@ CACHE_DIR = pathlib.Path('cache')
 CV_COUNT = 5
 INPUT_SIZE = (101, 101)
 BATCH_SIZE = 16
-EPOCHS = 100
+EPOCHS = 150
 
 
 def _main():
