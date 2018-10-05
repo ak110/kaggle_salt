@@ -161,10 +161,9 @@ def _get_meta_features(data_name, X, d, cv_index=None):
     """子モデルのout-of-fold predictionsを取得。"""
     import bin_nas
     import reg_nas
-    import darknet53_bu_nm  # 0.858
-    import darknet53_clipnorm  # 0.859
-    import darknet53_large  # 0.859
-    import darknet53_taila  # 0.860
+    import darknet53_coord_hcs  # 0.861
+    import darknet53_large2  # 0.859
+    import darknet53_resize128  # 0.858
 
     def _get(m):
         if data_name == 'val':
@@ -178,11 +177,10 @@ def _get_meta_features(data_name, X, d, cv_index=None):
         np.repeat(_get(bin_nas.predict_all(data_name, X, d)), 101 * 101).reshape(len(X), 101, 101, 1),
         np.repeat(_get(reg_nas.predict_all(data_name, X, d)), 101 * 101).reshape(len(X), 101, 101, 1),
         np.average([
-            _get(darknet53_bu_nm.predict_all(data_name, X, d)),
-            _get(darknet53_clipnorm.predict_all(data_name, X, d)),
-            _get(darknet53_large.predict_all(data_name, X, d)),
-            _get(darknet53_taila.predict_all(data_name, X, d)),
-        ], weights=[1, 1, 1, 1], axis=0),
+            _get(darknet53_coord_hcs.predict_all(data_name, X, d)),
+            _get(darknet53_large2.predict_all(data_name, X, d)),
+            _get(darknet53_resize128.predict_all(data_name, X, d)),
+        ], weights=[1, 1, 1], axis=0),
     ], axis=-1) * 2 - 1
     return X
 

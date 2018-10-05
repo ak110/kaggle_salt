@@ -1,19 +1,19 @@
 [INFO ] gpu count = 4 <pytoolkit.pytoolkit.dl.models:models.py:27>
-[INFO ] Accuracy: 0.968 <__main__:ml.py:682>
-[INFO ] F1-score: 0.935 <__main__:ml.py:683>
-[INFO ] AUC:      0.990 <__main__:ml.py:684>
-[INFO ] Logloss:  0.098 <__main__:ml.py:685>
+[INFO ] Accuracy: 0.967 <__main__:ml.py:717>
+[INFO ] F1-score: 0.932 <__main__:ml.py:718>
+[INFO ] AUC:      0.988 <__main__:ml.py:719>
+[INFO ] Logloss:  0.101 <__main__:ml.py:720>
 [INFO ] scores: <__main__:evaluation.py:22>
-[INFO ]   threshold=0.300: score=0.857 <__main__:evaluation.py:24>
-[INFO ]   threshold=0.340: score=0.857 <__main__:evaluation.py:24>
-[INFO ]   threshold=0.381: score=0.860 <__main__:evaluation.py:24>
-[INFO ]   threshold=0.421: score=0.862 <__main__:evaluation.py:24>
-[INFO ]   threshold=0.462: score=0.862 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.300: score=0.858 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.340: score=0.861 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.381: score=0.862 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.421: score=0.864 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.462: score=0.863 <__main__:evaluation.py:24>
 [INFO ]   threshold=0.502: score=0.864 <__main__:evaluation.py:24>
-[INFO ]   threshold=0.542: score=0.865 <__main__:evaluation.py:24>
-[INFO ]   threshold=0.583: score=0.865 <__main__:evaluation.py:24>
-[INFO ]   threshold=0.623: score=0.866 <__main__:evaluation.py:24>
-[INFO ]   threshold=0.664: score=0.864 <__main__:evaluation.py:24>
-[INFO ] max score: 0.866 (threshold: 0.611) <__main__:evaluation.py:26>
-[INFO ] IoU mean:  0.834 <__main__:evaluation.py:67>
-[INFO ] Acc empty: 0.972 <__main__:evaluation.py:72>
+[INFO ]   threshold=0.542: score=0.864 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.583: score=0.864 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.623: score=0.863 <__main__:evaluation.py:24>
+[INFO ]   threshold=0.664: score=0.863 <__main__:evaluation.py:24>
+[INFO ] max score: 0.865 (threshold: 0.490) <__main__:evaluation.py:26>
+[INFO ] IoU mean:  0.840 <__main__:evaluation.py:67>
+[INFO ] Acc empty: 0.964 <__main__:evaluation.py:72>

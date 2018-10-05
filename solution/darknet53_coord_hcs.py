@@ -104,6 +104,7 @@ def _create_network():
     for stage, (d, filters) in list(enumerate(zip(down_list, [32, 64, 128, 256, 512])))[::-1]:
         x = tk.dl.layers.subpixel_conv2d()(scale=2 if stage != 4 else 7)(x)
         x = builder.conv2d(filters, 1, use_act=False)(x)
+        d = tk.dl.layers.coord_channel_2d()(x_channel=False)(d)
         d = builder.conv2d(filters, 1, use_act=False)(d)
         x = keras.layers.add([x, d])
         x = builder.res_block(filters)(x)
@@ -119,6 +120,7 @@ def _create_network():
         tk.dl.layers.resize2d()((112, 112))(up_list[3]),
         up_list[4],
     ])  # 112
+    x = tk.dl.layers.coord_channel_2d()(x_channel=False)(x)
 
     x = builder.conv2d(64, use_act=False)(x)
     x = builder.res_block(64)(x)
@@ -180,8 +182,8 @@ def predict_all(data_name, X, d):
             model.load_weights(MODELS_DIR / f'model.fold{cv_index}.h5')
 
         X_t, d_t = X_list[cv_index]
-        pred1 = model.predict([X_t, np.zeros_like(d_t)], verbose=0)
-        pred2 = model.predict([X_t[:, :, ::-1, :], np.zeros_like(d_t)], verbose=0)[:, :, ::-1, :]
+        pred1 = model.predict([X_t, d_t], verbose=0)
+        pred2 = model.predict([X_t[:, :, ::-1, :], d_t], verbose=0)[:, :, ::-1, :]
         pred = np.mean([pred1, pred2], axis=0)
         pred_list.append(pred)
 
