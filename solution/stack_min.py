@@ -3,7 +3,6 @@ import argparse
 import pathlib
 
 import numpy as np
-import sklearn.externals.joblib as joblib
 from lib import data, evaluation
 
 import pytoolkit as tk
@@ -78,7 +77,6 @@ def _train(args):
 def _create_network(input_dims):
     """ネットワークを作って返す。"""
     import keras
-    import keras.backend as K
     builder = tk.dl.networks.Builder()
 
     inputs = [
@@ -177,11 +175,11 @@ def _get_meta_features(data_name, X, d, cv_index=None):
 
     X = np.concatenate([
         X / 255,
-        np.repeat(_get(bin_nas.predict_all(data_name, X, d)), 101 * 101).reshape(len(X), 101, 101, 1),
-        np.repeat(_get(reg_nas.predict_all(data_name, X, d)), 101 * 101).reshape(len(X), 101, 101, 1),
+        np.repeat(_get(bin_nas.predict_all(data_name, X, d, use_cache=True)), 101 * 101).reshape(len(X), 101, 101, 1),
+        np.repeat(_get(reg_nas.predict_all(data_name, X, d, use_cache=True)), 101 * 101).reshape(len(X), 101, 101, 1),
         np.average([
-            _get(darknet53_large2.predict_all(data_name, X, d)),
-            _get(darknet53_sepscse.predict_all(data_name, X, d)),
+            _get(darknet53_large2.predict_all(data_name, X, d, use_cache=True)),
+            _get(darknet53_sepscse.predict_all(data_name, X, d, use_cache=True)),
         ], weights=[1, 1, 1, 1], axis=0),
     ], axis=-1) * 2 - 1
     return X

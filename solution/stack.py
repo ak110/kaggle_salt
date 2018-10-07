@@ -3,7 +3,6 @@ import argparse
 import pathlib
 
 import numpy as np
-import sklearn.externals.joblib as joblib
 from lib import data, evaluation
 
 import pytoolkit as tk
@@ -78,7 +77,6 @@ def _train(args):
 def _create_network(input_dims):
     """ネットワークを作って返す。"""
     import keras
-    import keras.backend as K
     builder = tk.dl.networks.Builder()
 
     inputs = [
@@ -120,7 +118,7 @@ def _predict():
     data.save_submission(MODELS_DIR / 'submission.csv', pred)
 
 
-def predict_all(data_name, X, d, use_cache=False, chilld_cv_index=None):
+def predict_all(data_name, X, d, chilld_cv_index=None):
     """予測。"""
     if data_name == 'val':
         X_val = _get_meta_features(data_name, X, d)
