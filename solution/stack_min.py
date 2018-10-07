@@ -31,7 +31,7 @@ def _main():
         elif args.mode == 'validate':
             tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt', file_level='INFO')
             _validate()
-        else:
+        elif args.mode == 'predict':
             tk.log.init(MODELS_DIR / 'predict.log')
             _predict()
 

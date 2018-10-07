@@ -34,7 +34,7 @@ def _main():
         elif args.mode == 'validate':
             tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt', file_level='INFO')
             _validate()
-        else:
+        elif args.mode == 'predict':
             assert args.mode == 'predict'  # このモデルは単体では予測できないので処理無し。
 
 
