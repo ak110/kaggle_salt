@@ -4,6 +4,33 @@ import numpy as np
 import pytoolkit as tk
 
 
+def predict_tta(model, X_t, d_t):
+    """TTAありな予測処理。"""
+    pred = np.mean([
+        model.predict([X_t, d_t], verbose=0),
+        model.predict([X_t[:, :, ::-1, :], d_t], verbose=0)[:, :, ::-1, :],
+        model.predict([X_t - 16, d_t], verbose=0),
+        model.predict([X_t[:, :, ::-1, :] - 16, d_t], verbose=0)[:, :, ::-1, :],
+        model.predict([X_t + 16, d_t], verbose=0),
+        model.predict([X_t[:, :, ::-1, :] + 16, d_t], verbose=0)[:, :, ::-1, :],
+        model.predict([X_t / 1.1, d_t], verbose=0),
+        model.predict([X_t[:, :, ::-1, :] / 1.1, d_t], verbose=0)[:, :, ::-1, :],
+        model.predict([X_t * 1.1, d_t], verbose=0),
+        model.predict([X_t[:, :, ::-1, :] * 1.1, d_t], verbose=0)[:, :, ::-1, :],
+        model.predict([X_t, np.zeros_like(d_t)], verbose=0),
+        model.predict([X_t[:, :, ::-1, :], np.zeros_like(d_t)], verbose=0)[:, :, ::-1, :],
+        model.predict([X_t - 16, np.zeros_like(d_t)], verbose=0),
+        model.predict([X_t[:, :, ::-1, :] - 16, np.zeros_like(d_t)], verbose=0)[:, :, ::-1, :],
+        model.predict([X_t + 16, np.zeros_like(d_t)], verbose=0),
+        model.predict([X_t[:, :, ::-1, :] + 16, np.zeros_like(d_t)], verbose=0)[:, :, ::-1, :],
+        model.predict([X_t / 1.1, np.zeros_like(d_t)], verbose=0),
+        model.predict([X_t[:, :, ::-1, :] / 1.1, np.zeros_like(d_t)], verbose=0)[:, :, ::-1, :],
+        model.predict([X_t * 1.1, np.zeros_like(d_t)], verbose=0),
+        model.predict([X_t[:, :, ::-1, :] * 1.1, np.zeros_like(d_t)], verbose=0)[:, :, ::-1, :],
+    ], axis=0)
+    return pred
+
+
 def log_evaluation(y_val, pred_val, print_fn=None, search_th=False):
     """検証結果をログる。"""
     print_fn = print_fn or tk.log.get(__name__).info
