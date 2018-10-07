@@ -7,7 +7,7 @@ import numpy as np
 import sklearn.externals.joblib as joblib
 
 import pytoolkit as tk
-from lib import data, generator
+from lib import data, evaluation, generator
 
 MODEL_NAME = pathlib.Path(__file__).stem
 MODELS_DIR = pathlib.Path(f'models/{MODEL_NAME}')
