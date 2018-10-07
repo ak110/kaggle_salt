@@ -157,10 +157,10 @@ def _predict(tta):
     data.save_submission(MODELS_DIR / 'submission.csv', pred)
 
 
-def predict_all(data_name, X, d, tta):
+def predict_all(data_name, X, d, tta, use_cache=False):
     """予測。"""
     cache_path = CACHE_DIR / data_name / f'{MODEL_NAME}.pkl'
-    if cache_path.is_file():
+    if use_cache and cache_path.is_file():
         return joblib.load(cache_path)
 
     if data_name == 'val':

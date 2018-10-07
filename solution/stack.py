@@ -121,7 +121,7 @@ def _predict(tta):
     data.save_submission(MODELS_DIR / 'submission.csv', pred)
 
 
-def predict_all(data_name, X, d, tta, chilld_cv_index=None):
+def predict_all(data_name, X, d, tta, use_cache=False, chilld_cv_index=None):
     """予測。"""
     if data_name == 'val':
         X_val = _get_meta_features(data_name, X, d, tta)
@@ -181,15 +181,15 @@ def _get_meta_features(data_name, X, d, tta, cv_index=None):
 
     X = np.concatenate([
         X / 255,
-        np.repeat(_get(bin_nas.predict_all(data_name, X, d, tta)), 101 * 101).reshape(len(X), 101, 101, 1),
-        np.repeat(_get(reg_nas.predict_all(data_name, X, d, tta)), 101 * 101).reshape(len(X), 101, 101, 1),
+        np.repeat(_get(bin_nas.predict_all(data_name, X, d, tta, use_cache=True)), 101 * 101).reshape(len(X), 101, 101, 1),
+        np.repeat(_get(reg_nas.predict_all(data_name, X, d, tta, use_cache=True)), 101 * 101).reshape(len(X), 101, 101, 1),
         np.average([
-            _get(darknet53_coord_hcs.predict_all(data_name, X, d, tta)),
-            _get(darknet53_large2.predict_all(data_name, X, d, tta)),
-            _get(darknet53_resize128.predict_all(data_name, X, d, tta)),
-            _get(darknet53_sepscse.predict_all(data_name, X, d, tta)),
+            _get(darknet53_coord_hcs.predict_all(data_name, X, d, tta, use_cache=True)),
+            _get(darknet53_large2.predict_all(data_name, X, d, tta, use_cache=True)),
+            _get(darknet53_resize128.predict_all(data_name, X, d, tta, use_cache=True)),
+            _get(darknet53_sepscse.predict_all(data_name, X, d, tta, use_cache=True)),
         ], weights=[1, 1, 1, 1], axis=0),
-        _get(darknet53_mixup.predict_all(data_name, X, d, tta)),
+        _get(darknet53_mixup.predict_all(data_name, X, d, tta, use_cache=True)),
     ], axis=-1) * 2 - 1
     return X
 

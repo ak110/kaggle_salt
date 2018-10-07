@@ -5,8 +5,6 @@ if [ ! -e $PYFILE ] ; then echo "Error: $PYFILE is not found!" 2>&1 ; exit 1 ; f
 
 GPUS=$(nvidia-smi --list-gpus | wc -l)
 
-rm -rfv models/${1} reports/${1}.txt cache/*/${1}.pkl || true
-
 mpirun -np $GPUS python3 $PYFILE train --cv-index=0
 mpirun -np $GPUS python3 $PYFILE train --cv-index=1
 mpirun -np $GPUS python3 $PYFILE train --cv-index=2
