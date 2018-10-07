@@ -156,7 +156,7 @@ def _predict(tta):
 
 def predict_all(data_name, X, d, tta):
     """予測。"""
-    cache_path = CACHE_DIR / data_name / f'{MODEL_NAME}{".tta" if tta else ""}.pkl'
+    cache_path = CACHE_DIR / data_name / f'{MODEL_NAME}.pkl'
     if cache_path.is_file():
         return joblib.load(cache_path)
 
