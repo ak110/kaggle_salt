@@ -181,7 +181,7 @@ def _get_meta_features(data_name, X, d, cv_index=None):
             _get(darknet53_large2.predict_all(data_name, X, d, use_cache=True)),
             _get(darknet53_resize128.predict_all(data_name, X, d, use_cache=True)),
             _get(darknet53_sepscse.predict_all(data_name, X, d, use_cache=True)),
-        ], weights=[1, 1, 1, 1], axis=0),
+        ], weights=[1, 1, 1], axis=0),
     ], axis=-1) * 2 - 1
     return X
 
