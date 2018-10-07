@@ -124,7 +124,7 @@ def _predict(tta):
 def predict_all(data_name, X, d, tta, chilld_cv_index=None):
     """予測。"""
     if data_name == 'val':
-        X_val = _get_meta_features(data_name, X, d)
+        X_val = _get_meta_features(data_name, X, d, tta)
         X_list, vi_list = [], []
         split_seed = int((MODELS_DIR / 'split_seed.txt').read_text())
         for cv_index in range(CV_COUNT):
@@ -132,7 +132,7 @@ def predict_all(data_name, X, d, tta, chilld_cv_index=None):
             X_list.append(X_val[vi])
             vi_list.append(vi)
     else:
-        X_test = _get_meta_features(data_name, X, d, chilld_cv_index)
+        X_test = _get_meta_features(data_name, X, d, tta, chilld_cv_index)
         X_list = [X_test] * CV_COUNT
 
     gen = tk.generator.SimpleGenerator()
@@ -162,7 +162,7 @@ def predict_all(data_name, X, d, tta, chilld_cv_index=None):
     return pred
 
 
-def _get_meta_features(data_name, X, d, cv_index=None):
+def _get_meta_features(data_name, X, d, tta, cv_index=None):
     """子モデルのout-of-fold predictionsを取得。"""
     import bin_nas
     import reg_nas
@@ -181,15 +181,15 @@ def _get_meta_features(data_name, X, d, cv_index=None):
 
     X = np.concatenate([
         X / 255,
-        np.repeat(_get(bin_nas.predict_all(data_name, X, d)), 101 * 101).reshape(len(X), 101, 101, 1),
-        np.repeat(_get(reg_nas.predict_all(data_name, X, d)), 101 * 101).reshape(len(X), 101, 101, 1),
+        np.repeat(_get(bin_nas.predict_all(data_name, X, d, tta)), 101 * 101).reshape(len(X), 101, 101, 1),
+        np.repeat(_get(reg_nas.predict_all(data_name, X, d, tta)), 101 * 101).reshape(len(X), 101, 101, 1),
         np.average([
-            _get(darknet53_coord_hcs.predict_all(data_name, X, d)),
-            _get(darknet53_large2.predict_all(data_name, X, d)),
-            _get(darknet53_resize128.predict_all(data_name, X, d)),
-            _get(darknet53_sepscse.predict_all(data_name, X, d)),
+            _get(darknet53_coord_hcs.predict_all(data_name, X, d, tta)),
+            _get(darknet53_large2.predict_all(data_name, X, d, tta)),
+            _get(darknet53_resize128.predict_all(data_name, X, d, tta)),
+            _get(darknet53_sepscse.predict_all(data_name, X, d, tta)),
         ], weights=[1, 1, 1, 1], axis=0),
-        _get(darknet53_mixup.predict_all(data_name, X, d)),
+        _get(darknet53_mixup.predict_all(data_name, X, d, tta)),
     ], axis=-1) * 2 - 1
     return X
 
