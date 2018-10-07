@@ -4,30 +4,31 @@ import numpy as np
 import pytoolkit as tk
 
 
-def predict_tta(model, X_t, d_t):
+def predict_tta(model, X_t, d_t, mode='ss'):
     """TTAありな予測処理。"""
-    pred = np.mean([
-        model.predict([X_t, d_t], verbose=0),
-        model.predict([X_t[:, :, ::-1, :], d_t], verbose=0)[:, :, ::-1, :],
-        model.predict([X_t - 16, d_t], verbose=0),
-        model.predict([X_t[:, :, ::-1, :] - 16, d_t], verbose=0)[:, :, ::-1, :],
-        model.predict([X_t + 16, d_t], verbose=0),
-        model.predict([X_t[:, :, ::-1, :] + 16, d_t], verbose=0)[:, :, ::-1, :],
-        model.predict([X_t / 1.1, d_t], verbose=0),
-        model.predict([X_t[:, :, ::-1, :] / 1.1, d_t], verbose=0)[:, :, ::-1, :],
-        model.predict([X_t * 1.1, d_t], verbose=0),
-        model.predict([X_t[:, :, ::-1, :] * 1.1, d_t], verbose=0)[:, :, ::-1, :],
-        model.predict([X_t, np.zeros_like(d_t)], verbose=0),
-        model.predict([X_t[:, :, ::-1, :], np.zeros_like(d_t)], verbose=0)[:, :, ::-1, :],
-        model.predict([X_t - 16, np.zeros_like(d_t)], verbose=0),
-        model.predict([X_t[:, :, ::-1, :] - 16, np.zeros_like(d_t)], verbose=0)[:, :, ::-1, :],
-        model.predict([X_t + 16, np.zeros_like(d_t)], verbose=0),
-        model.predict([X_t[:, :, ::-1, :] + 16, np.zeros_like(d_t)], verbose=0)[:, :, ::-1, :],
-        model.predict([X_t / 1.1, np.zeros_like(d_t)], verbose=0),
-        model.predict([X_t[:, :, ::-1, :] / 1.1, np.zeros_like(d_t)], verbose=0)[:, :, ::-1, :],
-        model.predict([X_t * 1.1, np.zeros_like(d_t)], verbose=0),
-        model.predict([X_t[:, :, ::-1, :] * 1.1, np.zeros_like(d_t)], verbose=0)[:, :, ::-1, :],
-    ], axis=0)
+    assert mode in ('bin', 'ss')
+
+    def _mirror(X, d):
+        p1 = model.predict([X, d], verbose=0)
+        p2 = model.predict([X[:, :, ::-1, :], d], verbose=0)
+        if mode == 'bin':
+            return [p1, p2]
+        else:
+            return [p1, p2[:, :, ::-1, :]]
+
+    dz = np.zeros_like(d_t)
+    pred = np.mean(
+        _mirror(X_t, d_t) +
+        _mirror(X_t - 16, d_t) +
+        _mirror(X_t + 16, d_t) +
+        _mirror(X_t / 1.1, d_t) +
+        _mirror(X_t * 1.1, d_t) +
+        _mirror(X_t, dz) +
+        _mirror(X_t - 16, dz) +
+        _mirror(X_t + 16, dz) +
+        _mirror(X_t / 1.1, dz) +
+        _mirror(X_t * 1.1, dz) +
+        [], axis=0)
     return pred
 
 

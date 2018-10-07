@@ -133,18 +133,7 @@ def predict_all(data_name, X, d, use_cache=False):
             model.load_weights(MODELS_DIR / f'model.fold{cv_index}.h5')
 
         X_t, d_t = X_list[cv_index]
-        pred = np.mean([
-            model.predict([X_t, d_t], verbose=0),
-            model.predict([X_t[:, :, ::-1, :], d_t], verbose=0),
-            model.predict([X_t - 16, d_t], verbose=0),
-            model.predict([X_t[:, :, ::-1, :] - 16, d_t], verbose=0),
-            model.predict([X_t + 16, d_t], verbose=0),
-            model.predict([X_t[:, :, ::-1, :] + 16, d_t], verbose=0),
-            model.predict([X_t / 1.125, d_t], verbose=0),
-            model.predict([X_t[:, :, ::-1, :] / 1.125, d_t], verbose=0),
-            model.predict([X_t * 1.125, d_t], verbose=0),
-            model.predict([X_t[:, :, ::-1, :] * 1.125, d_t], verbose=0),
-        ], axis=0)
+        pred = evaluation.predict_tta(model, X_t, d_t, mode='bin')
         pred_list.append(pred)
 
     if data_name == 'val':
