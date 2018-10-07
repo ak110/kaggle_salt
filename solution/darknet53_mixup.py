@@ -186,15 +186,15 @@ def predict_all(data_name, X, d, tta):
         if tta:
             pred = np.mean([
                 model.predict([X_t, d_t], verbose=0),
-                model.predict([X_t[:, :, ::-1, :], d_t], verbose=0),
+                model.predict([X_t[:, :, ::-1, :], d_t], verbose=0)[:, :, ::-1, :],
                 model.predict([X_t - 16, d_t], verbose=0),
-                model.predict([X_t[:, :, ::-1, :] - 16, d_t], verbose=0),
+                model.predict([X_t[:, :, ::-1, :] - 16, d_t], verbose=0)[:, :, ::-1, :],
                 model.predict([X_t + 16, d_t], verbose=0),
-                model.predict([X_t[:, :, ::-1, :] + 16, d_t], verbose=0),
+                model.predict([X_t[:, :, ::-1, :] + 16, d_t], verbose=0)[:, :, ::-1, :],
                 model.predict([X_t / 1.125, d_t], verbose=0),
-                model.predict([X_t[:, :, ::-1, :] / 1.125, d_t], verbose=0),
+                model.predict([X_t[:, :, ::-1, :] / 1.125, d_t], verbose=0)[:, :, ::-1, :],
                 model.predict([X_t * 1.125, d_t], verbose=0),
-                model.predict([X_t[:, :, ::-1, :] * 1.125, d_t], verbose=0),
+                model.predict([X_t[:, :, ::-1, :] * 1.125, d_t], verbose=0)[:, :, ::-1, :],
             ], axis=0)
         else:
             pred = model.predict([X_t, d_t], verbose=0)
