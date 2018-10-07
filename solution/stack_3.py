@@ -22,7 +22,6 @@ def _main():
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', choices=('check', 'train', 'validate', 'predict'))
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
-    parser.add_argument('--tta', action='store_true')
     args = parser.parse_args()
     with tk.dl.session(use_horovod=args.mode == 'train'):
         if args.mode == 'check':
@@ -32,10 +31,10 @@ def _main():
             _train(args)
         elif args.mode == 'validate':
             tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt', file_level='INFO')
-            _validate(args.tta)
+            _validate()
         else:
             tk.log.init(MODELS_DIR / 'predict.log')
-            _predict(args.tta)
+            _predict()
 
 
 @tk.log.trace()
@@ -100,31 +99,31 @@ def _create_network(input_dims):
 
 
 @tk.log.trace()
-def _validate(tta):
+def _validate():
     """検証＆閾値決定。"""
     logger = tk.log.get(__name__)
     X, d, y = data.load_train_data()
-    pred = predict_all('val', X, d, tta)
+    pred = predict_all('val', X, d)
     threshold = evaluation.log_evaluation(y, pred, print_fn=logger.info, search_th=True)
     (MODELS_DIR / 'threshold.txt').write_text(str(threshold))
 
 
 @tk.log.trace()
-def _predict(tta):
+def _predict():
     """予測。"""
     logger = tk.log.get(__name__)
     X_test, d_test = data.load_test_data()
     threshold = float((MODELS_DIR / 'threshold.txt').read_text())
     logger.info(f'threshold = {threshold:.3f}')
-    pred_list = sum([predict_all('test', X_test, d_test, tta, chilld_cv_index) for chilld_cv_index in range(5)], [])
+    pred_list = sum([predict_all('test', X_test, d_test, chilld_cv_index) for chilld_cv_index in range(5)], [])
     pred = np.mean(pred_list, axis=0) > threshold
     data.save_submission(MODELS_DIR / 'submission.csv', pred)
 
 
-def predict_all(data_name, X, d, tta, chilld_cv_index=None):
+def predict_all(data_name, X, d, chilld_cv_index=None):
     """予測。"""
     if data_name == 'val':
-        X_val = _get_meta_features(data_name, X, d, tta)
+        X_val = _get_meta_features(data_name, X, d)
         X_list, vi_list = [], []
         split_seed = int((MODELS_DIR / 'split_seed.txt').read_text())
         for cv_index in range(CV_COUNT):
@@ -132,7 +131,7 @@ def predict_all(data_name, X, d, tta, chilld_cv_index=None):
             X_list.append(X_val[vi])
             vi_list.append(vi)
     else:
-        X_test = _get_meta_features(data_name, X, d, tta, chilld_cv_index)
+        X_test = _get_meta_features(data_name, X, d, chilld_cv_index)
         X_list = [X_test] * CV_COUNT
 
     gen = tk.generator.SimpleGenerator()
@@ -144,13 +143,10 @@ def predict_all(data_name, X, d, tta, chilld_cv_index=None):
             model.load_weights(MODELS_DIR / f'model.fold{cv_index}.h5')
 
         X_t = X_list[cv_index]
-        if tta:
-            pred = np.mean([
-                model.predict(X_t, verbose=0),
-                model.predict(X_t[:, :, ::-1, :], verbose=0)[:, :, ::-1, :],
-            ], axis=0)
-        else:
-            pred = model.predict(X_t, verbose=0)
+        pred = np.mean([
+            model.predict(X_t, verbose=0),
+            model.predict(X_t[:, :, ::-1, :], verbose=0)[:, :, ::-1, :],
+        ], axis=0)
         pred_list.append(pred)
 
     if data_name == 'val':
@@ -162,7 +158,7 @@ def predict_all(data_name, X, d, tta, chilld_cv_index=None):
     return pred
 
 
-def _get_meta_features(data_name, X, d, tta, cv_index=None):
+def _get_meta_features(data_name, X, d, cv_index=None):
     """子モデルのout-of-fold predictionsを取得。"""
     import bin_nas
     import reg_nas
@@ -181,12 +177,12 @@ def _get_meta_features(data_name, X, d, tta, cv_index=None):
 
     X = np.concatenate([
         X / 255,
-        np.repeat(_get(bin_nas.predict_all(data_name, X, d, tta)), 101 * 101).reshape(len(X), 101, 101, 1),
-        np.repeat(_get(reg_nas.predict_all(data_name, X, d, tta)), 101 * 101).reshape(len(X), 101, 101, 1),
+        np.repeat(_get(bin_nas.predict_all(data_name, X, d)), 101 * 101).reshape(len(X), 101, 101, 1),
+        np.repeat(_get(reg_nas.predict_all(data_name, X, d)), 101 * 101).reshape(len(X), 101, 101, 1),
         np.average([
-            _get(darknet53_large2.predict_all(data_name, X, d, tta)),
-            _get(darknet53_resize128.predict_all(data_name, X, d, tta)),
-            _get(darknet53_sepscse.predict_all(data_name, X, d, tta)),
+            _get(darknet53_large2.predict_all(data_name, X, d)),
+            _get(darknet53_resize128.predict_all(data_name, X, d)),
+            _get(darknet53_sepscse.predict_all(data_name, X, d)),
         ], weights=[1, 1, 1, 1], axis=0),
     ], axis=-1) * 2 - 1
     return X
