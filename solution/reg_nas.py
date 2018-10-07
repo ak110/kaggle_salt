@@ -24,6 +24,7 @@ def _main():
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', choices=('check', 'train', 'validate', 'predict'))
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
+    parser.add_argument('--tta', action='store_true')
     args = parser.parse_args()
     with tk.dl.session(use_horovod=args.mode == 'train'):
         if args.mode == 'check':
@@ -33,7 +34,7 @@ def _main():
             _train(args)
         elif args.mode == 'validate':
             tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt', file_level='INFO')
-            _validate()
+            _validate(args.tta)
         else:
             assert args.mode == 'predict'  # このモデルは単体では予測できないので処理無し。
 
@@ -98,18 +99,18 @@ def _create_network():
 
 
 @tk.log.trace()
-def _validate():
+def _validate(tta):
     """検証＆閾値決定。"""
     logger = tk.log.get(__name__)
     X, d, y = data.load_train_data()
     y = np.mean(y, axis=(1, 2, 3))
-    pred = predict_all('val', X, d)
+    pred = predict_all('val', X, d, tta)
     tk.ml.print_regression_metrics(y, pred, print_fn=logger.info)
 
 
-def predict_all(data_name, X, d):
+def predict_all(data_name, X, d, tta):
     """予測。"""
-    cache_path = CACHE_DIR / data_name / f'{MODEL_NAME}.pkl'
+    cache_path = CACHE_DIR / data_name / f'{MODEL_NAME}{".tta" if tta else ""}.pkl'
     if cache_path.is_file():
         return joblib.load(cache_path)
 
@@ -133,9 +134,21 @@ def predict_all(data_name, X, d):
             model.load_weights(MODELS_DIR / f'model.fold{cv_index}.h5')
 
         X_t, d_t = X_list[cv_index]
-        pred1 = model.predict([X_t, d_t], verbose=0)
-        pred2 = model.predict([X_t[:, :, ::-1, :], d_t], verbose=0)
-        pred = np.mean([pred1, pred2], axis=0)
+        if tta:
+            pred = np.mean([
+                model.predict([X_t, d_t], verbose=0),
+                model.predict([X_t[:, :, ::-1, :], d_t], verbose=0),
+                model.predict([X_t - 16, d_t], verbose=0),
+                model.predict([X_t[:, :, ::-1, :] - 16, d_t], verbose=0),
+                model.predict([X_t + 16, d_t], verbose=0),
+                model.predict([X_t[:, :, ::-1, :] + 16, d_t], verbose=0),
+                model.predict([X_t / 1.125, d_t], verbose=0),
+                model.predict([X_t[:, :, ::-1, :] / 1.125, d_t], verbose=0),
+                model.predict([X_t * 1.125, d_t], verbose=0),
+                model.predict([X_t[:, :, ::-1, :] * 1.125, d_t], verbose=0),
+            ], axis=0)
+        else:
+            pred = model.predict([X_t, d_t], verbose=0)
         pred_list.append(pred)
 
     if data_name == 'val':

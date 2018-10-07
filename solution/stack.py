@@ -22,6 +22,7 @@ def _main():
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', choices=('check', 'train', 'validate', 'predict'))
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
+    parser.add_argument('--tta', action='store_true')
     args = parser.parse_args()
     with tk.dl.session(use_horovod=args.mode == 'train'):
         if args.mode == 'check':
@@ -31,10 +32,10 @@ def _main():
             _train(args)
         elif args.mode == 'validate':
             tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt', file_level='INFO')
-            _validate()
+            _validate(args.tta)
         else:
             tk.log.init(MODELS_DIR / 'predict.log')
-            _predict()
+            _predict(args.tta)
 
 
 @tk.log.trace()
@@ -99,28 +100,28 @@ def _create_network(input_dims):
 
 
 @tk.log.trace()
-def _validate():
+def _validate(tta):
     """検証＆閾値決定。"""
     logger = tk.log.get(__name__)
     X, d, y = data.load_train_data()
-    pred = predict_all('val', X, d)
+    pred = predict_all('val', X, d, tta)
     threshold = evaluation.log_evaluation(y, pred, print_fn=logger.info, search_th=True)
     (MODELS_DIR / 'threshold.txt').write_text(str(threshold))
 
 
 @tk.log.trace()
-def _predict():
+def _predict(tta):
     """予測。"""
     logger = tk.log.get(__name__)
     X_test, d_test = data.load_test_data()
     threshold = float((MODELS_DIR / 'threshold.txt').read_text())
     logger.info(f'threshold = {threshold:.3f}')
-    pred_list = sum([predict_all('test', X_test, d_test, chilld_cv_index) for chilld_cv_index in range(5)], [])
+    pred_list = sum([predict_all('test', X_test, d_test, tta, chilld_cv_index) for chilld_cv_index in range(5)], [])
     pred = np.mean(pred_list, axis=0) > threshold
     data.save_submission(MODELS_DIR / 'submission.csv', pred)
 
 
-def predict_all(data_name, X, d, chilld_cv_index=None):
+def predict_all(data_name, X, d, tta, chilld_cv_index=None):
     """予測。"""
     if data_name == 'val':
         X_val = _get_meta_features(data_name, X, d)
@@ -143,9 +144,13 @@ def predict_all(data_name, X, d, chilld_cv_index=None):
             model.load_weights(MODELS_DIR / f'model.fold{cv_index}.h5')
 
         X_t = X_list[cv_index]
-        pred1 = model.predict(X_t, verbose=0)
-        pred2 = model.predict(X_t[:, :, ::-1, :], verbose=0)[:, :, ::-1, :]
-        pred = np.mean([pred1, pred2], axis=0)
+        if tta:
+            pred = np.mean([
+                model.predict(X_t, verbose=0),
+                model.predict(X_t[:, :, ::-1, :], verbose=0)[:, :, ::-1, :],
+            ], axis=0)
+        else:
+            pred = model.predict(X_t, verbose=0)
         pred_list.append(pred)
 
     if data_name == 'val':
