@@ -1,5 +1,9 @@
 #!/bin/bash
 set -eux
-./run-validate.sh darknet53_sepscse
-./run-validate.sh bin_nas
-./run-validate.sh reg_nas
+python3 darknet53_sepscse.py validate --tta
+python3 bin_nas.py validate --tta
+python3 reg_nas.py validate --tta
+
+python3 darknet53_sepscse.py predict --tta
+python3 bin_nas.py predict --tta
+python3 reg_nas.py predict --tta

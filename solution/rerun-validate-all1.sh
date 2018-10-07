@@ -1,4 +1,7 @@
 #!/bin/bash
 set -eux
-./run-validate.sh darknet53_coord_hcs
-./run-validate.sh darknet53_mixup
+python3 darknet53_coord_hcs.py validate --tta
+python3 darknet53_mixup.py validate --tta
+
+python3 darknet53_coord_hcs.py predict --tta
+python3 darknet53_mixup.py predict --tta
