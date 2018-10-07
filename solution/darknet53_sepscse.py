@@ -21,7 +21,7 @@ EPOCHS = 300
 def _main():
     tk.better_exceptions()
     parser = argparse.ArgumentParser()
-    parser.add_argument('mode', choices=('check', 'train', 'validate', 'predict'))
+    parser.add_argument('mode', choices=('check', 'train', 'validate', 'predict', 'checktta'))
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
     args = parser.parse_args()
     with tk.dl.session(use_horovod=args.mode == 'train'):
@@ -36,6 +36,9 @@ def _main():
         elif args.mode == 'predict':
             tk.log.init(MODELS_DIR / 'predict.log')
             _predict()
+        elif args.mode == 'checktta':
+            tk.log.init(None)
+            _checktta()
 
 
 @tk.log.trace()
@@ -206,6 +209,86 @@ def predict_all(data_name, X, d, use_cache=False):
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(pred, cache_path, compress=3)
     return pred
+
+
+def _checktta():
+    X, d, y = data.load_train_data()
+    X_list, vi_list = [], []
+    split_seed = int((MODELS_DIR / 'split_seed.txt').read_text())
+    for cv_index in range(CV_COUNT):
+        _, vi = tk.ml.cv_indices(X, None, cv_count=CV_COUNT, cv_index=cv_index, split_seed=split_seed, stratify=False)
+        X_list.append([X[vi], d[vi]])
+        vi_list.append(vi)
+
+    gen = tk.generator.SimpleGenerator()
+    model = tk.dl.models.Model.load(MODELS_DIR / f'model.fold0.h5', gen, batch_size=BATCH_SIZE, multi_gpu=True)
+
+    preds = [np.empty((len(X), 101, 101, 1), dtype=np.float32) for _ in range(28)]
+    for cv_index in tk.tqdm(range(CV_COUNT), desc='predict'):
+        if cv_index != 0:
+            model.load_weights(MODELS_DIR / f'model.fold{cv_index}.h5')
+
+        X_t, d_t = X_list[cv_index]
+        pi = 0
+        preds[pi][vi_list[cv_index]] = model.predict([X_t, d_t], verbose=0)
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t[:, :, ::-1, :], d_t], verbose=0)[:, :, ::-1, :]
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t - 16, d_t], verbose=0)
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t[:, :, ::-1, :] - 16, d_t], verbose=0)[:, :, ::-1, :]
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t + 16, d_t], verbose=0)
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t[:, :, ::-1, :] + 16, d_t], verbose=0)[:, :, ::-1, :]
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t / 1.125, d_t], verbose=0)
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t[:, :, ::-1, :] / 1.125, d_t], verbose=0)[:, :, ::-1, :]
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t * 1.125, d_t], verbose=0)
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t[:, :, ::-1, :] * 1.125, d_t], verbose=0)[:, :, ::-1, :]
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t - 8, d_t], verbose=0)
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t[:, :, ::-1, :] - 8, d_t], verbose=0)[:, :, ::-1, :]
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t + 8, d_t], verbose=0)
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t[:, :, ::-1, :] + 8, d_t], verbose=0)[:, :, ::-1, :]
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t, np.zeros_like(d_t)], verbose=0)
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t[:, :, ::-1, :], np.zeros_like(d_t)], verbose=0)[:, :, ::-1, :]
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t - 16, np.zeros_like(d_t)], verbose=0)
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t[:, :, ::-1, :] - 16, np.zeros_like(d_t)], verbose=0)[:, :, ::-1, :]
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t + 16, np.zeros_like(d_t)], verbose=0)
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t[:, :, ::-1, :] + 16, np.zeros_like(d_t)], verbose=0)[:, :, ::-1, :]
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t / 1.125, np.zeros_like(d_t)], verbose=0)
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t[:, :, ::-1, :] / 1.125, np.zeros_like(d_t)], verbose=0)[:, :, ::-1, :]
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t * 1.125, np.zeros_like(d_t)], verbose=0)
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t[:, :, ::-1, :] * 1.125, np.zeros_like(d_t)], verbose=0)[:, :, ::-1, :]
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t - 8, np.zeros_like(d_t)], verbose=0)
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t[:, :, ::-1, :] - 8, np.zeros_like(d_t)], verbose=0)[:, :, ::-1, :]
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t + 8, np.zeros_like(d_t)], verbose=0)
+        pi += 1
+        preds[pi][vi_list[cv_index]] = model.predict([X_t[:, :, ::-1, :] + 8, np.zeros_like(d_t)], verbose=0)[:, :, ::-1, :]
+        pi += 1
+
+    for i, pred in enumerate(preds):
+        print(f'{i:2d}: {evaluation.get_score_fixed_threshold(y, pred)}')
 
 
 if __name__ == '__main__':
