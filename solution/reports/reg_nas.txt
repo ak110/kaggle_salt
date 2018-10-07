@@ -1,4 +1,4 @@
-[INFO ] gpu count = 4 <pytoolkit.pytoolkit.dl.models:models.py:25>
-[INFO ] R^2:  0.823 <__main__:ml.py:699>
-[INFO ] RMSE: 0.134 (base: 0.318) <__main__:ml.py:700>
-[INFO ] MAE:  0.059 (base: 0.274) <__main__:ml.py:701>
+[INFO ] gpu count = 4 <pytoolkit.pytoolkit.dl.models:models.py:27>
+[INFO ] R^2:  0.824 <__main__:ml.py:750>
+[INFO ] RMSE: 0.133 (base: 0.318) <__main__:ml.py:751>
+[INFO ] MAE:  0.059 (base: 0.274) <__main__:ml.py:752>
