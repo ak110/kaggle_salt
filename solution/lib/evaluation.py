@@ -38,7 +38,7 @@ def log_evaluation(y_val, pred_val, print_fn=None, search_th=False):
 def get_score_fixed_threshold(y_true, y_pred):
     """適当スコア算出。"""
     threshold = 0.5
-    return compute_score(np.int32(y_val > 0.5), np.int32(pred_val > threshold))
+    return compute_score(np.int32(y_true > 0.5), np.int32(y_pred > threshold))
 
 
 def compute_score(y_true, y_pred):
