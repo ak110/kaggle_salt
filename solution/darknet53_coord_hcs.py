@@ -66,6 +66,7 @@ def _train(args, fine=False):
         X_test, d_test = _data.load_test_data()
         pred_test = predict_all('test', X_test, d_test, use_cache=True)[(args.cv_index + 1) % CV_COUNT]  # pseudo-labeling
         gen.add(tk.generator.RandomPickData([X_test, d_test], pred_test))
+        lr_multipliers = None
     gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True), input_index=0)
     gen.add(tk.image.Padding(probability=1, with_output=True), input_index=0)
     gen.add(tk.image.RandomRotate(probability=0.25, with_output=True), input_index=0)
