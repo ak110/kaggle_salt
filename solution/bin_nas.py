@@ -61,10 +61,10 @@ def _train(args, fine=False):
     gen = tk.generator.Generator(multiple_input=True)
     if fine:
         pseudo_size = len(y_train) // 2
-        X_train = [np.concatenate([X_train[0], [None] * pseudo_size]), np.concatenate([X_train[1], [None] * pseudo_size])]
-        y_train = np.concatenate([y_train, [None] * pseudo_size])
+        X_train = [np.array(list(X_train[0]) + [None] * pseudo_size), np.array(list(X_train[1]) + [None] * pseudo_size)]
+        y_train = np.array(list(y_train) + [None] * pseudo_size)
         X_test, d_test = _data.load_test_data()
-        pred_test = predict_all('test', X_test, d_test)[(args.cv_index + 1) % CV_COUNT]  # pseudo-labeling
+        pred_test = predict_all('test', X_test, d_test, use_cache=True)[(args.cv_index + 1) % CV_COUNT]  # pseudo-labeling
         gen.add(tk.generator.RandomPickData([X_test, d_test], pred_test))
     gen.add(tk.image.RandomFlipLR(probability=0.5), input_index=0)
     gen.add(tk.image.RandomPadding(probability=0.25, mode='reflect'), input_index=0)
