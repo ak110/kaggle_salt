@@ -62,11 +62,9 @@ def _train(args):
 
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
     model.compile(sgd_lr=0.01 / 128, loss=tk.dl.losses.lovasz_hinge_elup1, metrics=[tk.dl.metrics.binary_accuracy], clipnorm=10.0)
-    model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
         epochs=EPOCHS,
-        tsv_log_path=MODELS_DIR / f'history.fold{args.cv_index}.tsv',
         reduce_lr_epoch_rates=(0.5, 0.75, 0.875), mixup=False, lr_warmup=False)
     model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5', include_optimizer=False)
 
@@ -160,11 +158,11 @@ def _get_meta_features(data_name, X, d, cv_index=None):
     """子モデルのout-of-fold predictionsを取得。"""
     import bin_nas
     import reg_nas
-    import darknet53_coord_hcs  # 0.861
+    import darknet53_coord_hcs  # 0.860
     import darknet53_large2  # 0.859
-    import darknet53_resize128  # 0.858
-    import darknet53_sepscse  # 0.864
     import darknet53_mixup  # 0.857
+    import darknet53_resize128  # 0.859
+    import darknet53_sepscse  # 0.863
 
     def _get(m):
         if data_name == 'val':

@@ -21,7 +21,7 @@ EPOCHS = 100
 def _main():
     tk.better_exceptions()
     parser = argparse.ArgumentParser()
-    parser.add_argument('mode', choices=('check', 'train', 'validate', 'predict'))
+    parser.add_argument('mode', choices=('check', 'train', 'fine', 'validate', 'predict'))
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
     args = parser.parse_args()
     with tk.dl.session(use_horovod=args.mode == 'train'):
@@ -30,6 +30,9 @@ def _main():
         elif args.mode == 'train':
             tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
             _train(args)
+        elif args.mode == 'fine':
+            tk.log.init(MODELS_DIR / f'fine.fold{args.cv_index}.log')
+            _train(args, fine=True)
         elif args.mode == 'validate':
             tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt', file_level='INFO')
             _validate()
@@ -38,7 +41,7 @@ def _main():
 
 
 @tk.log.trace()
-def _train(args):
+def _train(args, fine=False):
     logger = tk.log.get(__name__)
     logger.info(f'args: {args}')
 
@@ -55,6 +58,10 @@ def _train(args):
     network, _ = _create_network()
 
     gen = tk.generator.Generator(multiple_input=True)
+    if fine:
+        X_test, d_test = _data.load_test_data()
+        pred_test = predict_all('test', X_test, d_test)[(args.cv_index + 1) % CV_COUNT]  # pseudo-labeling
+        gen.add(tk.generator.RandomPickData([X_test, d_test], pred_test))
     gen.add(tk.image.RandomFlipLR(probability=0.5), input_index=0)
     gen.add(tk.image.RandomPadding(probability=0.25, mode='reflect'), input_index=0)
     gen.add(tk.image.RandomRotate(probability=0.25), input_index=0)
@@ -67,12 +74,13 @@ def _train(args):
     gen.add(tk.image.Resize((101, 101)), input_index=0)
 
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
-    model.compile(sgd_lr=0.1 / 128, loss='binary_crossentropy', metrics=[tk.dl.metrics.binary_accuracy])
-    model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
+    if fine:
+        model.load_weights(MODELS_DIR / f'model.fold{args.cv_index}.h5')
+    model.compile(sgd_lr=0.01 / 128 if fine else 0.1 / 128, loss='binary_crossentropy',
+                  metrics=[tk.dl.metrics.binary_accuracy])
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
-        epochs=EPOCHS,
-        tsv_log_path=MODELS_DIR / f'history.fold{args.cv_index}.tsv',
+        epochs=EPOCHS // 3 if fine else EPOCHS,
         cosine_annealing=True, mixup=True)
     model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5', include_optimizer=False)
 
@@ -87,7 +95,7 @@ def _create_network():
 
     inputs = [
         builder.input_tensor(INPUT_SIZE + (1,)),
-        builder.input_tensor((1,)),
+        builder.input_tensor((1,)),  # depths
     ]
     x = inputs[0]
     x = builder.preprocess(mode='tf')(x)
