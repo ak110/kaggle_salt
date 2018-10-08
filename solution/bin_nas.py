@@ -25,7 +25,7 @@ def _main():
     parser.add_argument('mode', choices=('check', 'train', 'fine', 'validate', 'predict'))
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
     args = parser.parse_args()
-    with tk.dl.session(use_horovod=args.mode == 'train'):
+    with tk.dl.session(use_horovod=args.mode in ('train', 'fine')):
         if args.mode == 'check':
             _create_network()[0].summary()
         elif args.mode == 'train':
