@@ -38,7 +38,8 @@ def _main():
             tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt', file_level='INFO')
             _validate()
         elif args.mode == 'predict':
-            assert args.mode == 'predict'  # このモデルは単体では予測できないので処理無し。
+            tk.log.init(MODELS_DIR / 'predict.log')
+            _predict()
 
 
 @tk.log.trace()
@@ -127,6 +128,13 @@ def _validate():
     y = np.mean(y, axis=(1, 2, 3))
     pred = predict_all('val', X, d)
     tk.ml.print_regression_metrics(y, pred, print_fn=logger.info)
+
+
+@tk.log.trace()
+def _predict():
+    """予測。"""
+    X_test, d_test = _data.load_test_data()
+    predict_all('test', X_test, d_test)
 
 
 def predict_all(data_name, X, d, use_cache=False):
