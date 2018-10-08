@@ -3,8 +3,9 @@ import argparse
 import pathlib
 
 import numpy as np
-from . import _data, _evaluation
 
+import _data
+import _evaluation
 import pytoolkit as tk
 
 MODEL_NAME = pathlib.Path(__file__).stem
