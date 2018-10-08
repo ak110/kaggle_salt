@@ -1,19 +1,19 @@
 [INFO ] gpu count = 4 <pytoolkit.pytoolkit.dl.models:models.py:27>
-[INFO ] Accuracy: 0.967 <__main__:ml.py:717>
-[INFO ] F1-score: 0.934 <__main__:ml.py:718>
-[INFO ] AUC:      0.989 <__main__:ml.py:719>
-[INFO ] Logloss:  0.095 <__main__:ml.py:720>
-[INFO ] scores: <__main__:evaluation.py:22>
-[INFO ]   threshold=0.300: score=0.858 <__main__:evaluation.py:24>
-[INFO ]   threshold=0.340: score=0.860 <__main__:evaluation.py:24>
-[INFO ]   threshold=0.381: score=0.862 <__main__:evaluation.py:24>
-[INFO ]   threshold=0.421: score=0.863 <__main__:evaluation.py:24>
-[INFO ]   threshold=0.462: score=0.866 <__main__:evaluation.py:24>
-[INFO ]   threshold=0.502: score=0.865 <__main__:evaluation.py:24>
-[INFO ]   threshold=0.542: score=0.865 <__main__:evaluation.py:24>
-[INFO ]   threshold=0.583: score=0.865 <__main__:evaluation.py:24>
-[INFO ]   threshold=0.623: score=0.865 <__main__:evaluation.py:24>
-[INFO ]   threshold=0.664: score=0.864 <__main__:evaluation.py:24>
-[INFO ] max score: 0.866 (threshold: 0.510) <__main__:evaluation.py:26>
-[INFO ] IoU mean:  0.841 <__main__:evaluation.py:73>
-[INFO ] Acc empty: 0.962 <__main__:evaluation.py:78>
+[INFO ] Accuracy: 0.968 <__main__:ml.py:717>
+[INFO ] F1-score: 0.936 <__main__:ml.py:718>
+[INFO ] AUC:      0.981 <__main__:ml.py:719>
+[INFO ] Logloss:  0.110 <__main__:ml.py:720>
+[INFO ] scores: <__main__:evaluation.py:50>
+[INFO ]   threshold=0.300: score=0.864 <__main__:evaluation.py:52>
+[INFO ]   threshold=0.340: score=0.864 <__main__:evaluation.py:52>
+[INFO ]   threshold=0.381: score=0.864 <__main__:evaluation.py:52>
+[INFO ]   threshold=0.421: score=0.865 <__main__:evaluation.py:52>
+[INFO ]   threshold=0.462: score=0.865 <__main__:evaluation.py:52>
+[INFO ]   threshold=0.502: score=0.865 <__main__:evaluation.py:52>
+[INFO ]   threshold=0.542: score=0.865 <__main__:evaluation.py:52>
+[INFO ]   threshold=0.583: score=0.865 <__main__:evaluation.py:52>
+[INFO ]   threshold=0.623: score=0.866 <__main__:evaluation.py:52>
+[INFO ]   threshold=0.664: score=0.865 <__main__:evaluation.py:52>
+[INFO ] max score: 0.866 (threshold: 0.660) <__main__:evaluation.py:55>
+[INFO ] IoU mean:  0.833 <__main__:evaluation.py:113>
+[INFO ] Acc empty: 0.972 <__main__:evaluation.py:118>
