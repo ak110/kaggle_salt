@@ -60,6 +60,9 @@ def _train(args, fine=False):
 
     gen = tk.generator.Generator(multiple_input=True)
     if fine:
+        pseudo_size = len(y_train) // 2
+        X_train = [np.concatenate([X_train[0], [None] * pseudo_size]), np.concatenate([X_train[1], [None] * pseudo_size])]
+        y_train = np.concatenate([y_train, [None] * pseudo_size])
         X_test, d_test = _data.load_test_data()
         pred_test = predict_all('test', X_test, d_test)[(args.cv_index + 1) % CV_COUNT]  # pseudo-labeling
         gen.add(tk.generator.RandomPickData([X_test, d_test], pred_test))
