@@ -3,7 +3,7 @@ import argparse
 import pathlib
 
 import numpy as np
-from lib import data, evaluation
+from . import _data, _evaluation
 
 import pytoolkit as tk
 
@@ -45,7 +45,7 @@ def _train(args):
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     (MODELS_DIR / 'split_seed.txt').write_text(str(split_seed))
 
-    X, d, y = data.load_train_data()
+    X, d, y = _data.load_train_data()
     X = _get_meta_features('val', X, d)
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)
     (X_train, y_train), (X_val, y_val) = (X[ti], y[ti]), (X[vi], y[vi])
@@ -71,7 +71,7 @@ def _train(args):
     model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5', include_optimizer=False)
 
     if tk.dl.hvd.is_master():
-        evaluation.log_evaluation(y_val, model.predict(X_val))
+        _evaluation.log_evaluation(y_val, model.predict(X_val))
 
 
 def _create_network(input_dims):
@@ -100,9 +100,9 @@ def _create_network(input_dims):
 def _validate():
     """検証＆閾値決定。"""
     logger = tk.log.get(__name__)
-    X, d, y = data.load_train_data()
+    X, d, y = _data.load_train_data()
     pred = predict_all('val', X, d)
-    threshold = evaluation.log_evaluation(y, pred, print_fn=logger.info, search_th=True)
+    threshold = _evaluation.log_evaluation(y, pred, print_fn=logger.info, search_th=True)
     (MODELS_DIR / 'threshold.txt').write_text(str(threshold))
 
 
@@ -110,12 +110,12 @@ def _validate():
 def _predict():
     """予測。"""
     logger = tk.log.get(__name__)
-    X_test, d_test = data.load_test_data()
+    X_test, d_test = _data.load_test_data()
     threshold = float((MODELS_DIR / 'threshold.txt').read_text())
     logger.info(f'threshold = {threshold:.3f}')
     pred_list = sum([predict_all('test', X_test, d_test, chilld_cv_index) for chilld_cv_index in range(5)], [])
     pred = np.mean(pred_list, axis=0) > threshold
-    data.save_submission(MODELS_DIR / 'submission.csv', pred)
+    _data.save_submission(MODELS_DIR / 'submission.csv', pred)
 
 
 def predict_all(data_name, X, d, chilld_cv_index=None):

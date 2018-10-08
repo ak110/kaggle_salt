@@ -7,7 +7,7 @@ import numpy as np
 import sklearn.externals.joblib as joblib
 
 import pytoolkit as tk
-from lib import data, evaluation, generator
+from . import _data, _evaluation
 
 MODEL_NAME = pathlib.Path(__file__).stem
 MODELS_DIR = pathlib.Path(f'models/{MODEL_NAME}')
@@ -47,7 +47,7 @@ def _train(args):
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     (MODELS_DIR / 'split_seed.txt').write_text(str(split_seed))
 
-    X, d, y = data.load_train_data()
+    X, d, y = _data.load_train_data()
     y = np.max(y > 0.5, axis=(1, 2, 3)).astype(np.uint8)  # 0 or 1
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)
     (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti]], y[ti]), ([X[vi], d[vi]], y[vi])
@@ -55,7 +55,18 @@ def _train(args):
 
     network, _ = _create_network()
 
-    gen = generator.create_generator(mode='bin')
+    gen = tk.generator.Generator(multiple_input=True)
+    gen.add(tk.image.RandomFlipLR(probability=0.5), input_index=0)
+    gen.add(tk.image.RandomPadding(probability=0.25, mode='reflect'), input_index=0)
+    gen.add(tk.image.RandomRotate(probability=0.25), input_index=0)
+    gen.add(tk.image.RandomAugmentors([
+        tk.image.RandomBlur(probability=0.125),
+        tk.image.RandomUnsharpMask(probability=0.125),
+        tk.image.RandomBrightness(probability=0.25),
+        tk.image.RandomContrast(probability=0.25),
+    ], probability=0.125), input_index=0)
+    gen.add(tk.image.Resize((101, 101)), input_index=0)
+
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
     model.compile(sgd_lr=0.1 / 128, loss='binary_crossentropy', metrics=[tk.dl.metrics.binary_accuracy])
     model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
@@ -101,7 +112,7 @@ def _create_network():
 def _validate():
     """検証＆閾値決定。"""
     logger = tk.log.get(__name__)
-    X, d, y = data.load_train_data()
+    X, d, y = _data.load_train_data()
     y = np.max(y > 0.5, axis=(1, 2, 3)).astype(np.uint8)  # 0 or 1
     pred = predict_all('val', X, d)
     tk.ml.print_classification_metrics(y, pred, print_fn=logger.info)
@@ -121,7 +132,7 @@ def predict_all(data_name, X, d, use_cache=False):
             X_list.append([X[vi], d[vi]])
             vi_list.append(vi)
     else:
-        X, d = data.load_test_data()
+        X, d = _data.load_test_data()
         X_list = [[X, d]] * CV_COUNT
 
     gen = tk.generator.SimpleGenerator()
@@ -133,7 +144,7 @@ def predict_all(data_name, X, d, use_cache=False):
             model.load_weights(MODELS_DIR / f'model.fold{cv_index}.h5')
 
         X_t, d_t = X_list[cv_index]
-        pred = evaluation.predict_tta(model, X_t, d_t, mode='bin')
+        pred = _evaluation.predict_tta(model, X_t, d_t, mode='bin')
         pred_list.append(pred)
 
     if data_name == 'val':
