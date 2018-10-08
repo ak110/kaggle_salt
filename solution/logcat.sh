@@ -11,6 +11,9 @@ for d in models/* ; do
             grep --with-filename ' score:' $d/train.*.log || \
                 grep --with-filename 'Accuracy:' $d/train.*.log || \
                 grep --with-filename 'R^2:' $d/train.*.log
+            grep --with-filename ' score:' $d/fine.*.log || \
+                grep --with-filename 'Accuracy:' $d/fine.*.log || \
+                grep --with-filename 'R^2:' $d/fine.*.log
         fi
     fi
 done
