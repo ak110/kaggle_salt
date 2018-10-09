@@ -156,7 +156,6 @@ def _get_meta_features(data_name, X, cv_index=None):
     import reg_nas
     import darknet53_coord_hcs  # 0.860
     import darknet53_large2  # 0.859
-    import darknet53_mixup  # 0.857
     import darknet53_resize128  # 0.859
     import darknet53_sepscse  # 0.863
 

@@ -63,7 +63,8 @@ def _train(args, fine=False):
         pseudo_size = len(y_train) // 2
         X_train = [np.array(list(X_train[0]) + [None] * pseudo_size), np.array(list(X_train[1]) + [None] * pseudo_size)]
         y_train = np.array(list(y_train) + [None] * pseudo_size)
-        X_test = _data.load_test_data()[tk.ml.cv_indices(X_test, np.zeros((len(X_test),)), cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)[1]]
+        X_test = _data.load_test_data()
+        X_test = X_test[tk.ml.cv_indices(X_test, np.zeros((len(X_test),)), cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)[1]]
         pred_test = predict_all('test', X_test, use_cache=True)[(args.cv_index + 1) % CV_COUNT]  # pseudo-labeling
         gen.add(tk.generator.RandomPickData(X_test, pred_test))
         lr_multipliers = None
