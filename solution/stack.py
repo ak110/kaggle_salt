@@ -107,7 +107,7 @@ def _predict():
     X_test, d_test = _data.load_test_data()
     threshold = float((MODELS_DIR / 'threshold.txt').read_text())
     logger.info(f'threshold = {threshold:.3f}')
-    pred_list = sum([predict_all('test', X_test, d_test, chilld_cv_index) for chilld_cv_index in range(5)], [])
+    pred_list = [predict_all('test', X_test, d_test, chilld_cv_index) for chilld_cv_index in range(5)]
     pred = np.mean(pred_list, axis=0) > threshold
     _data.save_submission(MODELS_DIR / 'submission.csv', pred)
 
@@ -146,7 +146,7 @@ def predict_all(data_name, X, d, chilld_cv_index=None):
         for vi, p in zip(vi_list, pred_list):
             pred[vi] = p
     else:
-        pred = pred_list
+        pred = np.mean(pred_list, axis=0)
     return pred
 
 
