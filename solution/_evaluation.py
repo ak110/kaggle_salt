@@ -16,18 +16,13 @@ def predict_tta(model, X_t, d_t, mode='ss'):
         else:
             return [p1, p2[:, :, ::-1, :]]
 
-    # dz = np.zeros_like(d_t)
+    z_t = np.zeros_like(d_t)
     pred = np.mean(
-        _mirror(X_t, d_t) +
-        _mirror(X_t - 8, d_t) +
-        _mirror(X_t + 8, d_t) +
-        _mirror(X_t / 1.1, d_t) +
-        _mirror(X_t * 1.1, d_t) +
-        # _mirror(X_t, dz) +
-        # _mirror(X_t - 16, dz) +
-        # _mirror(X_t + 16, dz) +
-        # _mirror(X_t / 1.1, dz) +
-        # _mirror(X_t * 1.1, dz) +
+        _mirror(X_t, z_t) +
+        _mirror(X_t - 8, z_t) +
+        _mirror(X_t + 8, z_t) +
+        _mirror(X_t / 1.1, z_t) +
+        _mirror(X_t * 1.1, z_t) +
         [], axis=0)
     return pred
 
