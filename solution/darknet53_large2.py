@@ -61,7 +61,7 @@ def _train(args, fine=False):
     gen = tk.generator.Generator()
     if fine:
         pseudo_size = len(y_train) // 2
-        X_train = [np.array(list(X_train[0]) + [None] * pseudo_size), np.array(list(X_train[1]) + [None] * pseudo_size)]
+        X_train = np.array(list(X_train) + [None] * pseudo_size)
         y_train = np.array(list(y_train) + [None] * pseudo_size)
         X_test = _data.load_test_data()
         _, pi = tk.ml.cv_indices(X_test, np.zeros((len(X_test),)), cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)
