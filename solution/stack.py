@@ -46,8 +46,8 @@ def _train(args):
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     (MODELS_DIR / 'split_seed.txt').write_text(str(split_seed))
 
-    X, d, y = _data.load_train_data()
-    X = _get_meta_features('val', X, d)
+    X, y = _data.load_train_data()
+    X = _get_meta_features('val', X)
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)
     (X_train, y_train), (X_val, y_val) = (X[ti], y[ti]), (X[vi], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
@@ -94,8 +94,8 @@ def _create_network(input_dims):
 def _validate():
     """検証＆閾値決定。"""
     logger = tk.log.get(__name__)
-    X, d, y = _data.load_train_data()
-    pred = predict_all('val', X, d)
+    X, y = _data.load_train_data()
+    pred = predict_all('val', X)
     threshold = _evaluation.log_evaluation(y, pred, print_fn=logger.info, search_th=True)
     (MODELS_DIR / 'threshold.txt').write_text(str(threshold))
 
@@ -104,18 +104,18 @@ def _validate():
 def _predict():
     """予測。"""
     logger = tk.log.get(__name__)
-    X_test, d_test = _data.load_test_data()
+    X_test = _data.load_test_data()
     threshold = float((MODELS_DIR / 'threshold.txt').read_text())
     logger.info(f'threshold = {threshold:.3f}')
-    pred_list = [predict_all('test', X_test, d_test, chilld_cv_index) for chilld_cv_index in range(5)]
+    pred_list = [predict_all('test', X_test, chilld_cv_index) for chilld_cv_index in range(5)]
     pred = np.mean(pred_list, axis=0) > threshold
     _data.save_submission(MODELS_DIR / 'submission.csv', pred)
 
 
-def predict_all(data_name, X, d, chilld_cv_index=None):
+def predict_all(data_name, X, chilld_cv_index=None):
     """予測。"""
     if data_name == 'val':
-        X_val = _get_meta_features(data_name, X, d)
+        X_val = _get_meta_features(data_name, X)
         X_list, vi_list = [], []
         split_seed = int((MODELS_DIR / 'split_seed.txt').read_text())
         for cv_index in range(CV_COUNT):
@@ -123,7 +123,7 @@ def predict_all(data_name, X, d, chilld_cv_index=None):
             X_list.append(X_val[vi])
             vi_list.append(vi)
     else:
-        X_test = _get_meta_features(data_name, X, d, chilld_cv_index)
+        X_test = _get_meta_features(data_name, X, chilld_cv_index)
         X_list = [X_test] * CV_COUNT
 
     gen = tk.generator.SimpleGenerator()
@@ -150,7 +150,7 @@ def predict_all(data_name, X, d, chilld_cv_index=None):
     return pred
 
 
-def _get_meta_features(data_name, X, d, cv_index=None):
+def _get_meta_features(data_name, X, cv_index=None):
     """子モデルのout-of-fold predictionsを取得。"""
     import bin_nas
     import reg_nas
@@ -169,13 +169,13 @@ def _get_meta_features(data_name, X, d, cv_index=None):
 
     X = np.concatenate([
         X / 255,
-        np.repeat(_get(bin_nas.predict_all(data_name, X, d, use_cache=True)), 101 * 101).reshape(len(X), 101, 101, 1),
-        np.repeat(_get(reg_nas.predict_all(data_name, X, d, use_cache=True)), 101 * 101).reshape(len(X), 101, 101, 1),
+        np.repeat(_get(bin_nas.predict_all(data_name, X, use_cache=True)), 101 * 101).reshape(len(X), 101, 101, 1),
+        np.repeat(_get(reg_nas.predict_all(data_name, X, use_cache=True)), 101 * 101).reshape(len(X), 101, 101, 1),
         np.average([
-            _get(darknet53_coord_hcs.predict_all(data_name, X, d, use_cache=True)),
-            _get(darknet53_large2.predict_all(data_name, X, d, use_cache=True)),
-            _get(darknet53_resize128.predict_all(data_name, X, d, use_cache=True)),
-            _get(darknet53_sepscse.predict_all(data_name, X, d, use_cache=True)),
+            _get(darknet53_coord_hcs.predict_all(data_name, X, use_cache=True)),
+            _get(darknet53_large2.predict_all(data_name, X, use_cache=True)),
+            _get(darknet53_resize128.predict_all(data_name, X, use_cache=True)),
+            _get(darknet53_sepscse.predict_all(data_name, X, use_cache=True)),
         ], weights=[1, 1, 1, 1], axis=0),
     ], axis=-1) * 2 - 1
     return X

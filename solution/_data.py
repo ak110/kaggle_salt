@@ -11,36 +11,24 @@ TRAIN_MASK_DIR = pathlib.Path('../input/train/masks')
 TEST_IMAGE_DIR = pathlib.Path('../input/test/images')
 TRAIN_PATH = pathlib.Path('../input/train.csv')
 TEST_PATH = pathlib.Path('../input/sample_submission.csv')
-DEPTHS_PATH = pathlib.Path('../input/depths.csv')
 CACHE_DIR = pathlib.Path('cache')
 
 
 @tk.cache.memorize(CACHE_DIR, compress=3)
 def load_train_data():
-    """訓練データ。Xは0～255、yは0～1。dは平均0、標準偏差1。"""
+    """訓練データ。Xは0～255、yは0～1。"""
     id_list = pd.read_csv(TRAIN_PATH)['id'].values
     X = _load_image([TRAIN_IMAGE_DIR / f'{id_}.png' for id_ in id_list])
-    d = _load_depths(id_list)
     y = _load_image([TRAIN_MASK_DIR / f'{id_}.png' for id_ in id_list]) / 255
-    return X, d, y
+    return X, y
 
 
 @tk.cache.memorize(CACHE_DIR, compress=3)
 def load_test_data():
-    """訓練データ。Xは0～255。dは平均0、標準偏差1。"""
+    """訓練データ。Xは0～255。"""
     id_list = pd.read_csv(TEST_PATH)['id'].values
     X = _load_image([TEST_IMAGE_DIR / f'{id_}.png' for id_ in id_list])
-    d = _load_depths(id_list)
-    return X, d
-
-
-def _load_depths(id_list):
-    df_depths = pd.read_csv(DEPTHS_PATH, index_col='id')
-    depths = df_depths['z'].to_dict()
-    d = np.array([depths[id_] for id_ in id_list], dtype=np.float32)
-    d -= df_depths['z'].mean()
-    d /= df_depths['z'].std()
-    return d
+    return X
 
 
 def _load_image(X):

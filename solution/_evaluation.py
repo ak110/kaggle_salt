@@ -4,25 +4,24 @@ import numpy as np
 import pytoolkit as tk
 
 
-def predict_tta(model, X_t, d_t, mode='ss'):
+def predict_tta(model, X_t, mode='ss'):
     """TTAありな予測処理。"""
     assert mode in ('bin', 'ss')
 
-    def _mirror(X, d):
-        p1 = model.predict([X, d], verbose=0)
-        p2 = model.predict([X[:, :, ::-1, :], d], verbose=0)
+    def _mirror(X):
+        p1 = model.predict(X, verbose=0)
+        p2 = model.predict(X[:, :, ::-1, :], verbose=0)
         if mode == 'bin':
             return [p1, p2]
         else:
             return [p1, p2[:, :, ::-1, :]]
 
-    z_t = np.zeros_like(d_t)
     pred = np.mean(
-        _mirror(X_t, z_t) +
-        _mirror(X_t - 8, z_t) +
-        _mirror(X_t + 8, z_t) +
-        _mirror(X_t / 1.1, z_t) +
-        _mirror(X_t * 1.1, z_t) +
+        _mirror(X_t) +
+        _mirror(X_t - 8) +
+        _mirror(X_t + 8) +
+        _mirror(X_t / 1.1) +
+        _mirror(X_t * 1.1) +
         [], axis=0)
     return pred
 

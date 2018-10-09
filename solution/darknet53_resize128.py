@@ -51,32 +51,33 @@ def _train(args, fine=False):
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     (MODELS_DIR / 'split_seed.txt').write_text(str(split_seed))
 
-    X, d, y = _data.load_train_data()
+    X, y = _data.load_train_data()
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)
-    (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti]], y[ti]), ([X[vi], d[vi]], y[vi])
+    (X_train, y_train), (X_val, y_val) = (X[ti], y[ti]), (X[vi], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
 
     network, lr_multipliers = _create_network()
 
-    gen = tk.generator.Generator(multiple_input=True)
+    gen = tk.generator.Generator()
     if fine:
         pseudo_size = len(y_train) // 2
         X_train = [np.array(list(X_train[0]) + [None] * pseudo_size), np.array(list(X_train[1]) + [None] * pseudo_size)]
         y_train = np.array(list(y_train) + [None] * pseudo_size)
-        X_test, d_test = _data.load_test_data()
-        pred_test = predict_all('test', X_test, d_test, use_cache=True)[(args.cv_index + 1) % CV_COUNT]  # pseudo-labeling
-        gen.add(tk.generator.RandomPickData([X_test, d_test], pred_test))
-    gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True), input_index=0)
-    gen.add(tk.image.Padding(probability=1, with_output=True), input_index=0)
-    gen.add(tk.image.RandomRotate(probability=0.25, with_output=True), input_index=0)
-    gen.add(tk.image.RandomCrop(probability=1, with_output=True), input_index=0)
+        X_test = _data.load_test_data()[tk.ml.cv_indices(X_test, np.zeros((len(X_test),)), cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)[1]]
+        pred_test = predict_all('test', X_test, use_cache=True)[(args.cv_index + 1) % CV_COUNT]  # pseudo-labeling
+        gen.add(tk.generator.RandomPickData(X_test, pred_test))
+        lr_multipliers = None
+    gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True))
+    gen.add(tk.image.Padding(probability=1, with_output=True))
+    gen.add(tk.image.RandomRotate(probability=0.25, with_output=True))
+    gen.add(tk.image.RandomCrop(probability=1, with_output=True))
     gen.add(tk.image.RandomAugmentors([
         tk.image.RandomBlur(probability=0.125),
         tk.image.RandomUnsharpMask(probability=0.125),
         tk.image.RandomBrightness(probability=0.25),
         tk.image.RandomContrast(probability=0.25),
-    ], probability=0.125), input_index=0)
-    gen.add(tk.image.Resize((101, 101), with_output=True), input_index=0)
+    ], probability=0.125))
+    gen.add(tk.image.Resize((101, 101), with_output=True))
 
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
     if fine:
@@ -100,7 +101,6 @@ def _create_network():
 
     inputs = [
         builder.input_tensor(INPUT_SIZE + (1,)),
-        builder.input_tensor((1,)),  # depths
     ]
     x = inputs[0]
     x = builder.preprocess(mode='div255')(x)
@@ -117,7 +117,6 @@ def _create_network():
 
     x = base_network.outputs[0]
     x = keras.layers.GlobalAveragePooling2D()(x)
-    x = keras.layers.concatenate([x, inputs[1]])
     x = builder.dense(256)(x)
     x = builder.act()(x)
     x = builder.dense(8 * 8 * 32)(x)
@@ -159,8 +158,8 @@ def _create_network():
 def _validate():
     """検証＆閾値決定。"""
     logger = tk.log.get(__name__)
-    X, d, y = _data.load_train_data()
-    pred = predict_all('val', X, d)
+    X, y = _data.load_train_data()
+    pred = predict_all('val', X)
     threshold = _evaluation.log_evaluation(y, pred, print_fn=logger.info, search_th=True)
     (MODELS_DIR / 'threshold.txt').write_text(str(threshold))
 
@@ -169,15 +168,15 @@ def _validate():
 def _predict():
     """予測。"""
     logger = tk.log.get(__name__)
-    X_test, d_test = _data.load_test_data()
+    X_test = _data.load_test_data()
     threshold = float((MODELS_DIR / 'threshold.txt').read_text())
     logger.info(f'threshold = {threshold:.3f}')
-    pred_list = predict_all('test', X_test, d_test)
+    pred_list = predict_all('test', X_test)
     pred = np.mean(pred_list, axis=0) > threshold
     _data.save_submission(MODELS_DIR / 'submission.csv', pred)
 
 
-def predict_all(data_name, X, d, use_cache=False):
+def predict_all(data_name, X, use_cache=False):
     """予測。"""
     cache_path = CACHE_DIR / data_name / f'{MODEL_NAME}.pkl'
     if use_cache and cache_path.is_file():
@@ -188,11 +187,10 @@ def predict_all(data_name, X, d, use_cache=False):
         split_seed = int((MODELS_DIR / 'split_seed.txt').read_text())
         for cv_index in range(CV_COUNT):
             _, vi = tk.ml.cv_indices(X, None, cv_count=CV_COUNT, cv_index=cv_index, split_seed=split_seed, stratify=False)
-            X_list.append([X[vi], d[vi]])
+            X_list.append(X[vi])
             vi_list.append(vi)
     else:
-        X, d = _data.load_test_data()
-        X_list = [[X, d]] * CV_COUNT
+        X_list = [X] * CV_COUNT
 
     gen = tk.generator.SimpleGenerator()
     model = tk.dl.models.Model.load(MODELS_DIR / f'model.fold0.h5', gen, batch_size=BATCH_SIZE, multi_gpu=True)
