@@ -204,8 +204,8 @@ def predict_all(data_name, X, use_cache=False):
         if cv_index != 0:
             model.load_weights(MODELS_DIR / f'model.fold{cv_index}.h5')
 
-        X_t, d_t = X_list[cv_index]
-        pred = _evaluation.predict_tta(model, X_t, d_t)
+        X_t = X_list[cv_index]
+        pred = _evaluation.predict_tta(model, X_t)
         pred_list.append(pred)
 
     if data_name == 'val':
