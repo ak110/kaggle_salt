@@ -13,8 +13,8 @@ MODELS_DIR = pathlib.Path(f'models/{MODEL_NAME}')
 REPORTS_DIR = pathlib.Path('reports')
 CV_COUNT = 15
 INPUT_SIZE = (101, 101)
-BATCH_SIZE = 128
-EPOCHS = 16
+BATCH_SIZE = 64
+EPOCHS = 32
 
 
 def _main():
@@ -83,7 +83,12 @@ def _create_network(input_dims):
     ]
     x = inputs[0]
     x = keras.layers.concatenate([x, tk.dl.layers.channel_pair_2d()()(x)])
-    x = builder.conv2d(128, 1, use_bias=True, use_bn=False)(x)
+    x = builder.conv2d(128, 1, use_act=False)(x)
+    x = builder.res_block(128)(x)
+    x = builder.res_block(128)(x)
+    x = builder.res_block(128)(x)
+    x = builder.bn_act()(x)
+    x = builder.scse_block(128)(x)
     x = builder.conv2d(1, 1, use_bias=True, use_bn=False, activation='sigmoid')(x)
 
     network = keras.models.Model(inputs, x)
