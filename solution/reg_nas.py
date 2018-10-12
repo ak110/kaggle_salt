@@ -82,7 +82,7 @@ def _train(args, fine=False):
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
     if fine:
         model.load_weights(MODELS_DIR / f'model.fold{args.cv_index}.h5')
-    model.compile(sgd_lr=0.01 / 128 if fine else 0.1 / 128, loss='binary_crossentropy',
+    model.compile(sgd_lr=0.001 / 128 if fine else 0.1 / 128, loss='binary_crossentropy',
                   metrics=[tk.dl.metrics.binary_accuracy])
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
