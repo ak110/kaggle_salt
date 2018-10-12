@@ -11,7 +11,7 @@ import pytoolkit as tk
 MODEL_NAME = pathlib.Path(__file__).stem
 MODELS_DIR = pathlib.Path(f'models/{MODEL_NAME}')
 REPORTS_DIR = pathlib.Path('reports')
-CV_COUNT = 15
+CV_COUNT = 5
 INPUT_SIZE = (101, 101)
 BATCH_SIZE = 32
 EPOCHS = 32
@@ -66,7 +66,7 @@ def _train(args):
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
         epochs=EPOCHS,
-        reduce_lr_epoch_rates=(0.5, 0.75, 0.875), mixup=False, lr_warmup=False)
+        reduce_lr_epoch_rates=(0.5, 0.75, 0.875), mixup=True, lr_warmup=False)
     model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5', include_optimizer=False)
 
     if tk.dl.hvd.is_master():
