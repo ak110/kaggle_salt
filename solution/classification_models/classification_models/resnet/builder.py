@@ -25,22 +25,22 @@ from .blocks import basic_identity_block
 from .blocks import conv_block as usual_conv_block
 from .blocks import identity_block as usual_identity_block
 
+
 def build_resnet(
-     repetitions=(2, 2, 2, 2),
-     include_top=True,
-     input_tensor=None,
-     input_shape=None,
-     classes=1000,
-     block_type='usual'):
-    
+        repetitions=(2, 2, 2, 2),
+        include_top=True,
+        input_tensor=None,
+        input_shape=None,
+        classes=1000,
+        block_type='usual'):
     """
     TODO
     """
-    
+
     # Determine proper input shape
     input_shape = _obtain_input_shape(input_shape,
                                       default_size=224,
-                                      min_size=197,
+                                      min_size=112,  # @@@ changed from 197
                                       data_format='channels_last',
                                       require_flatten=include_top)
 
@@ -51,7 +51,7 @@ def build_resnet(
             img_input = Input(tensor=input_tensor, shape=input_shape)
         else:
             img_input = input_tensor
-    
+
     # get parameters for model layers
     no_scale_bn_params = get_bn_params(scale=False)
     bn_params = get_bn_params()
@@ -64,32 +64,35 @@ def build_resnet(
     else:
         conv_block = usual_conv_block
         identity_block = usual_identity_block
-    
+
     # resnet bottom
     x = BatchNormalization(name='bn_data', **no_scale_bn_params)(img_input)
     x = ZeroPadding2D(padding=(3, 3))(x)
-    x = Conv2D(init_filters, (7, 7), strides=(2, 2), name='conv0', **conv_params)(x)
+    # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    # x = Conv2D(init_filters, (7, 7), strides=(2, 2), name='conv0', **conv_params)(x)
+    x = Conv2D(init_filters, (7, 7), name='conv0', **conv_params)(x)
+    # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     x = BatchNormalization(name='bn0', **bn_params)(x)
     x = Activation('relu', name='relu0')(x)
     x = ZeroPadding2D(padding=(1, 1))(x)
     x = MaxPooling2D((3, 3), strides=(2, 2), padding='valid', name='pooling0')(x)
-    
+
     # resnet body
     for stage, rep in enumerate(repetitions):
         for block in range(rep):
-            
+
             filters = init_filters * (2**stage)
-            
+
             # first block of first stage without strides because we have maxpooling before
             if block == 0 and stage == 0:
                 x = conv_block(filters, stage, block, strides=(1, 1))(x)
-                
+
             elif block == 0:
                 x = conv_block(filters, stage, block, strides=(2, 2))(x)
-                
+
             else:
                 x = identity_block(filters, stage, block)(x)
-                
+
     x = BatchNormalization(name='bn1', **bn_params)(x)
     x = Activation('relu', name='relu1')(x)
 
@@ -104,7 +107,7 @@ def build_resnet(
         inputs = get_source_inputs(input_tensor)
     else:
         inputs = img_input
-        
+
     # Create model.
     model = Model(inputs, x)
 

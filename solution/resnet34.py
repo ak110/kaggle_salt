@@ -60,7 +60,7 @@ def _train(args, fine=False):
     network, lr_multipliers = _create_network()
 
     gen = tk.generator.Generator()
-    if fine:
+    if True:
         pseudo_size = len(y_train) // 2
         X_train = np.array(list(X_train) + [None] * pseudo_size)
         y_train = np.array(list(y_train) + [None] * pseudo_size)
@@ -68,6 +68,7 @@ def _train(args, fine=False):
         _, pi = tk.ml.cv_indices(X_test, np.zeros((len(X_test),)), cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)
         pred_test = predict_all('test', X_test, use_cache=True)[(args.cv_index + 1) % CV_COUNT]  # pseudo-labeling
         gen.add(tk.generator.RandomPickData(X_test[pi], pred_test[pi]))
+    if fine:
         lr_multipliers = None
     gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True))
     gen.add(tk.image.Padding(probability=1, with_output=True))
@@ -108,12 +109,7 @@ def _create_network():
     x = tk.dl.layers.pad2d()(((5, 6), (5, 6)), mode='reflect')(x)  # 112
     x = keras.layers.concatenate([x, x, x])
     x = builder.preprocess(mode='caffe')(x)
-    base_network = ResNet34(include_top=False, input_shape=(224, 224, 3), input_tensor=x, weights='imagenet')
-    base_network.get_layer(name='conv0').strides = (1, 1)  # strides 2 -> 1
-    base_network.get_layer(name='conv0').padding = 'same'
-    base_network.get_layer(name='conv0')(base_network.get_layer(name='bn_data').output)  # remove zero_padding2d_1
-    for layer in base_network.layers[4:]:
-        layer(layer.input)  # rebuild
+    base_network = ResNet34(include_top=False, input_shape=(112, 112, 3), input_tensor=x, weights='imagenet')
     lr_multipliers = {l: 0.1 for l in base_network.layers}
     down_list = []
     down_list.append(base_network.get_layer(name='relu0').output)  # stage 1: 112
