@@ -3,6 +3,7 @@ import argparse
 import pathlib
 
 import numpy as np
+import sklearn.externals.joblib as joblib
 
 import _data
 import _evaluation
@@ -11,10 +12,11 @@ import pytoolkit as tk
 MODEL_NAME = pathlib.Path(__file__).stem
 MODELS_DIR = pathlib.Path(f'models/{MODEL_NAME}')
 REPORTS_DIR = pathlib.Path('reports')
+CACHE_DIR = pathlib.Path('cache')
 CV_COUNT = 5
 INPUT_SIZE = (101, 101)
-BATCH_SIZE = 16
-EPOCHS = 128
+BATCH_SIZE = 32
+EPOCHS = 32
 
 
 def _main():
@@ -66,7 +68,7 @@ def _train(args):
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
         epochs=EPOCHS,
-        cosine_annealing=True, mixup=False, lr_warmup=True)
+        reduce_lr_epoch_rates=(0.5, 0.75, 0.875), mixup=False, lr_warmup=False)
     model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5', include_optimizer=False)
 
     if tk.dl.hvd.is_master():
@@ -83,40 +85,14 @@ def _create_network(input_dims):
     ]
     x = inputs[0]
     x = keras.layers.concatenate([x, tk.dl.layers.channel_pair_2d()()(x)])
-    x = tk.dl.layers.pad2d()(((5, 6), (5, 6)), mode='reflect')(x)  # 112
-    down_list = [x]
-    x = builder.conv2d(32)(x)
-    x = builder.conv2d(32)(x)
-    for stage, filters in enumerate([64, 128, 256, 512]):  # 56 28 14 7
-        x = keras.layers.MaxPooling2D()(x)
-        x = builder.conv2d(filters)(x)
-        x = builder.conv2d(filters)(x)
-        x = builder.scse_block(filters)(x)
-        down_list.append(x)
+    x = builder.conv2d(128, 1, use_act=False)(x)
+    x = builder.res_block(128)(x)
+    x = builder.res_block(128)(x)
+    x = builder.res_block(128)(x)
+    x = builder.bn_act()(x)
+    x = builder.scse_block(128)(x)
+    x = builder.conv2d(1, 1, use_bias=True, use_bn=False, activation='sigmoid')(x)
 
-    x = builder.conv2d(512)(x)
-    x = builder.conv2d(512)(x)
-    x = keras.layers.GlobalMaxPooling2D()(x)
-    x = builder.dense(256)(x)
-    x = builder.act()(x)
-    x = builder.dense(7 * 7 * 32)(x)
-    x = builder.act()(x)
-    x = keras.layers.Reshape((1, 1, -1))(x)
-
-    for stage, d in list(enumerate(down_list))[::-1]:
-        filters = builder.shape(d)[-1]
-        x = tk.dl.layers.subpixel_conv2d()(scale=2 if stage != 4 else 7)(x)
-        x = tk.dl.layers.coord_channel_2d()(x_channel=False)(x)
-        x = builder.conv2d(filters, 1, use_act=False)(x)
-        d = builder.conv2d(filters, 1, use_act=False)(d)
-        x = keras.layers.add([x, d])
-        x = builder.res_block(filters)(x)
-        x = builder.res_block(filters)(x)
-        x = builder.res_block(filters)(x)
-        x = builder.bn_act()(x)
-
-    x = keras.layers.Cropping2D(((5, 6), (5, 6)))(x)  # 101
-    x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     network = keras.models.Model(inputs, x)
     return network, None
 
@@ -138,13 +114,23 @@ def _predict():
     X_test = _data.load_test_data()
     threshold = float((MODELS_DIR / 'threshold.txt').read_text())
     logger.info(f'threshold = {threshold:.3f}')
-    pred_list = [predict_all('test', X_test, chilld_cv_index) for chilld_cv_index in range(5)]
+    pred_list = predict_all('test', X_test)
     pred = np.mean(pred_list, axis=0) > threshold
     _data.save_submission(MODELS_DIR / 'submission.csv', pred)
 
 
-def predict_all(data_name, X, chilld_cv_index=None):
+def predict_all(data_name, X, use_cache=False, child_cv_index=None):
     """予測。"""
+    cache_path = CACHE_DIR / data_name / f'{MODEL_NAME}.pkl'
+    if use_cache and cache_path.is_file() and child_cv_index is None:
+        return joblib.load(cache_path)
+
+    if data_name == 'test' and child_cv_index is None:
+        pred = [predict_all(data_name, X, use_cache, i) for i in range(5)]
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump(pred, cache_path, compress=3)
+        return pred
+
     if data_name == 'val':
         X_val = _get_meta_features(data_name, X)
         X_list, vi_list = [], []
@@ -154,7 +140,7 @@ def predict_all(data_name, X, chilld_cv_index=None):
             X_list.append(X_val[vi])
             vi_list.append(vi)
     else:
-        X_test = _get_meta_features(data_name, X, chilld_cv_index)
+        X_test = _get_meta_features(data_name, X, child_cv_index)
         X_list = [X_test] * CV_COUNT
 
     gen = tk.generator.SimpleGenerator()
@@ -178,6 +164,10 @@ def predict_all(data_name, X, chilld_cv_index=None):
             pred[vi] = p
     else:
         pred = np.mean(pred_list, axis=0)
+
+    if data_name != 'test':
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump(pred, cache_path, compress=3)
     return pred
 
 
