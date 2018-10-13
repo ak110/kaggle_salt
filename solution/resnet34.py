@@ -5,9 +5,10 @@ import pathlib
 import numpy as np
 import sklearn.externals.joblib as joblib
 
+import _data
+import _evaluation
 import pytoolkit as tk
 from classification_models.classification_models import ResNet34
-from lib import data, generator, evaluation
 
 MODEL_NAME = pathlib.Path(__file__).stem
 MODELS_DIR = pathlib.Path(f'models/{MODEL_NAME}')
@@ -22,25 +23,28 @@ EPOCHS = 300
 def _main():
     tk.better_exceptions()
     parser = argparse.ArgumentParser()
-    parser.add_argument('mode', choices=('check', 'train', 'validate', 'predict'))
+    parser.add_argument('mode', choices=('check', 'train', 'fine', 'validate', 'predict'))
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
     args = parser.parse_args()
-    with tk.dl.session(use_horovod=args.mode == 'train'):
+    with tk.dl.session(use_horovod=args.mode in ('train', 'fine')):
         if args.mode == 'check':
             _create_network()[0].summary()
         elif args.mode == 'train':
             tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
             _train(args)
+        elif args.mode == 'fine':
+            tk.log.init(MODELS_DIR / f'fine.fold{args.cv_index}.log')
+            _train(args, fine=True)
         elif args.mode == 'validate':
             tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt', file_level='INFO')
             _validate()
-        else:
+        elif args.mode == 'predict':
             tk.log.init(MODELS_DIR / 'predict.log')
             _predict()
 
 
 @tk.log.trace()
-def _train(args):
+def _train(args, fine=False):
     logger = tk.log.get(__name__)
     logger.info(f'args: {args}')
 
@@ -48,26 +52,48 @@ def _train(args):
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     (MODELS_DIR / 'split_seed.txt').write_text(str(split_seed))
 
-    X, d, y = data.load_train_data()
+    X, y = _data.load_train_data()
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)
-    (X_train, y_train), (X_val, y_val) = ([X[ti], d[ti]], y[ti]), ([X[vi], d[vi]], y[vi])
+    (X_train, y_train), (X_val, y_val) = (X[ti], y[ti]), (X[vi], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
 
     network, lr_multipliers = _create_network()
 
-    gen = generator.create_generator(mode='ss')
+    gen = tk.generator.Generator()
+    if fine:
+        pseudo_size = len(y_train) // 2
+        X_train = np.array(list(X_train) + [None] * pseudo_size)
+        y_train = np.array(list(y_train) + [None] * pseudo_size)
+        X_test = _data.load_test_data()
+        _, pi = tk.ml.cv_indices(X_test, np.zeros((len(X_test),)), cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)
+        pred_test = predict_all('test', X_test, use_cache=True)[(args.cv_index + 1) % CV_COUNT]  # pseudo-labeling
+        gen.add(tk.generator.RandomPickData(X_test[pi], pred_test[pi]))
+        lr_multipliers = None
+    gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True))
+    gen.add(tk.image.Padding(probability=1, with_output=True))
+    gen.add(tk.image.RandomRotate(probability=0.25, with_output=True))
+    gen.add(tk.image.RandomCrop(probability=1, with_output=True))
+    gen.add(tk.image.RandomAugmentors([
+        tk.image.RandomBlur(probability=0.125),
+        tk.image.RandomUnsharpMask(probability=0.125),
+        tk.image.RandomBrightness(probability=0.25),
+        tk.image.RandomContrast(probability=0.25),
+    ], probability=0.125))
+    gen.add(tk.image.Resize((101, 101), with_output=True))
+
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
-    model.compile(sgd_lr=0.1 / 128, loss=tk.dl.losses.lovasz_hinge, metrics=[tk.dl.metrics.binary_accuracy], lr_multipliers=lr_multipliers)
-    model.plot(MODELS_DIR / 'model.svg', show_shapes=True)
+    if fine:
+        model.load_weights(MODELS_DIR / f'model.fold{args.cv_index}.h5')
+    model.compile(sgd_lr=0.001 / 128 if fine else 0.1 / 128, loss=tk.dl.losses.lovasz_hinge_elup1,
+                  metrics=[tk.dl.metrics.binary_accuracy], lr_multipliers=lr_multipliers, clipnorm=10.0)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
-        epochs=EPOCHS,
-        tsv_log_path=MODELS_DIR / f'history.fold{args.cv_index}.tsv',
-        cosine_annealing=True, mixup=True)
-    model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5')
+        epochs=EPOCHS // 3 if fine else EPOCHS,
+        cosine_annealing=True, mixup=False)
+    model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5', include_optimizer=False)
 
     if tk.dl.hvd.is_master():
-        evaluation.log_evaluation(y_val, model.predict(X_val))
+        _evaluation.log_evaluation(y_val, model.predict(X_val))
 
 
 def _create_network():
@@ -77,17 +103,19 @@ def _create_network():
 
     inputs = [
         builder.input_tensor(INPUT_SIZE + (1,)),
-        builder.input_tensor((1,)),  # depths
     ]
     x = inputs[0]
-    x = keras.layers.UpSampling2D()(x)  # 202
-    x = x_in = tk.dl.layers.pad2d()(((11, 11), (11, 11)), mode='reflect')(x)  # 224
+    x = tk.dl.layers.pad2d()(((5, 6), (5, 6)), mode='reflect')(x)  # 112
     x = keras.layers.concatenate([x, x, x])
     x = builder.preprocess(mode='caffe')(x)
     base_network = ResNet34(include_top=False, input_shape=(224, 224, 3), input_tensor=x, weights='imagenet')
+    base_network.get_layer(name='conv0').strides = (1, 1)  # strides 2 -> 1
+    base_network.get_layer(name='conv0').padding = 'same'
+    base_network.get_layer(name='conv0')(base_network.get_layer(name='bn_data').output)  # remove zero_padding2d_1
+    for layer in base_network.layers[4:]:
+        layer(layer.input)  # rebuild
     lr_multipliers = {l: 0.1 for l in base_network.layers}
     down_list = []
-    down_list.append(x_in)  # stage 0: 224
     down_list.append(base_network.get_layer(name='relu0').output)  # stage 1: 112
     down_list.append(base_network.get_layer(name='stage2_unit1_relu1').output)  # stage 2: 56
     down_list.append(base_network.get_layer(name='stage3_unit1_relu1').output)  # stage 3: 28
@@ -98,23 +126,19 @@ def _create_network():
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(256)(x)
     x = builder.act()(x)
-    x = keras.layers.concatenate([x, inputs[1]])
-    x = builder.dense(256)(x)
+    x = builder.dense(7 * 7 * 32)(x)
     x = builder.act()(x)
     x = keras.layers.Reshape((1, 1, -1))(x)
 
     up_list = []
-    for stage, (d, filters) in list(enumerate(zip(down_list, [16, 32, 64, 128, 256, 512])))[::-1]:
-        if stage == 5:
-            x = keras.layers.UpSampling2D(7)(x)
-        else:
-            x = tk.dl.layers.subpixel_conv2d()(scale=2)(x)
-            x = builder.dwconv2d(5)(x)
+    for stage, (d, filters) in list(enumerate(zip(down_list, [32, 64, 128, 256, 512])))[::-1]:
+        x = tk.dl.layers.subpixel_conv2d()(scale=2 if stage != 4 else 7)(x)
         x = builder.conv2d(filters, 1, use_act=False)(x)
+        d = tk.dl.layers.coord_channel_2d()(x_channel=False)(d)
         d = builder.conv2d(filters, 1, use_act=False)(d)
         x = keras.layers.add([x, d])
-        x = builder.res_block(filters, dropout=0.25)(x)
-        x = builder.res_block(filters, dropout=0.25)(x)
+        x = builder.res_block(filters)(x)
+        x = builder.res_block(filters)(x)
         x = builder.bn_act()(x)
         x = builder.scse_block(filters)(x)
         up_list.append(builder.conv2d(32, 1)(x))
@@ -125,13 +149,13 @@ def _create_network():
         tk.dl.layers.resize2d()((112, 112))(up_list[2]),
         tk.dl.layers.resize2d()((112, 112))(up_list[3]),
         up_list[4],
-        tk.dl.layers.resize2d()((112, 112))(up_list[5]),
     ])  # 112
+    x = tk.dl.layers.coord_channel_2d()(x_channel=False)(x)
 
     x = builder.conv2d(64, use_act=False)(x)
-    x = builder.res_block(64, dropout=0.25)(x)
-    x = builder.res_block(64, dropout=0.25)(x)
-    x = builder.res_block(64, dropout=0.25)(x)
+    x = builder.res_block(64)(x)
+    x = builder.res_block(64)(x)
+    x = builder.res_block(64)(x)
     x = builder.bn_act()(x)
 
     x = keras.layers.Cropping2D(((5, 6), (5, 6)))(x)  # 101
@@ -144,25 +168,28 @@ def _create_network():
 def _validate():
     """検証＆閾値決定。"""
     logger = tk.log.get(__name__)
-    X, d, y = data.load_train_data()
-    pred = predict_all('val', X, d)
-    evaluation.log_evaluation(y, pred, print_fn=logger.info)
+    X, y = _data.load_train_data()
+    pred = predict_all('val', X)
+    threshold = _evaluation.log_evaluation(y, pred, print_fn=logger.info, search_th=True)
+    (MODELS_DIR / 'threshold.txt').write_text(str(threshold))
 
 
 @tk.log.trace()
 def _predict():
     """予測。"""
     logger = tk.log.get(__name__)
-    X_test, d_test = data.load_test_data()
-    pred_list = predict_all('test', X_test, d_test)
-    pred = np.mean(pred_list, axis=0) > 0.5
-    data.save_submission(MODELS_DIR / 'submission.csv', pred)
+    X_test = _data.load_test_data()
+    threshold = float((MODELS_DIR / 'threshold.txt').read_text())
+    logger.info(f'threshold = {threshold:.3f}')
+    pred_list = predict_all('test', X_test)
+    pred = np.mean(pred_list, axis=0) > threshold
+    _data.save_submission(MODELS_DIR / 'submission.csv', pred)
 
 
-def predict_all(data_name, X, d):
+def predict_all(data_name, X, use_cache=False):
     """予測。"""
     cache_path = CACHE_DIR / data_name / f'{MODEL_NAME}.pkl'
-    if cache_path.is_file():
+    if use_cache and cache_path.is_file():
         return joblib.load(cache_path)
 
     if data_name == 'val':
@@ -170,11 +197,10 @@ def predict_all(data_name, X, d):
         split_seed = int((MODELS_DIR / 'split_seed.txt').read_text())
         for cv_index in range(CV_COUNT):
             _, vi = tk.ml.cv_indices(X, None, cv_count=CV_COUNT, cv_index=cv_index, split_seed=split_seed, stratify=False)
-            X_list.append([X[vi], d[vi]])
+            X_list.append(X[vi])
             vi_list.append(vi)
     else:
-        X, d = data.load_test_data()
-        X_list = [[X, d]] * CV_COUNT
+        X_list = [X] * CV_COUNT
 
     gen = tk.generator.SimpleGenerator()
     model = tk.dl.models.Model.load(MODELS_DIR / f'model.fold0.h5', gen, batch_size=BATCH_SIZE, multi_gpu=True)
@@ -184,10 +210,8 @@ def predict_all(data_name, X, d):
         if cv_index != 0:
             model.load_weights(MODELS_DIR / f'model.fold{cv_index}.h5')
 
-        X_t, d_t = X_list[cv_index]
-        pred1 = model.predict([X_t, d_t], verbose=0)
-        pred2 = model.predict([X_t[:, :, ::-1, :], d_t], verbose=0)[:, :, ::-1, :]
-        pred = np.mean([pred1, pred2], axis=0)
+        X_t = X_list[cv_index]
+        pred = _evaluation.predict_tta(model, X_t)
         pred_list.append(pred)
 
     if data_name == 'val':
