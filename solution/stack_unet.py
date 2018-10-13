@@ -22,7 +22,7 @@ EPOCHS = 128
 def _main():
     tk.better_exceptions()
     parser = argparse.ArgumentParser()
-    parser.add_argument('mode', choices=('check', 'train', 'validate', 'predict'))
+    parser.add_argument('mode', choices=('check', 'train', 'fine', 'validate', 'predict'))
     parser.add_argument('--cv-index', default=0, choices=range(CV_COUNT), type=int)
     args = parser.parse_args()
     with tk.dl.session(use_horovod=args.mode in ('train', 'fine')):
@@ -31,6 +31,9 @@ def _main():
         elif args.mode == 'train':
             tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
             _train(args)
+        elif args.mode == 'fine':
+            tk.log.init(MODELS_DIR / f'fine.fold{args.cv_index}.log')
+            _train(args, fine=True)
         elif args.mode == 'validate':
             tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt', file_level='INFO')
             _validate()
@@ -40,7 +43,7 @@ def _main():
 
 
 @tk.log.trace()
-def _train(args):
+def _train(args, fine=False):
     logger = tk.log.get(__name__)
     logger.info(f'args: {args}')
 
@@ -57,6 +60,15 @@ def _train(args):
     network, _ = _create_network(input_dims=X.shape[-1])
 
     gen = tk.generator.Generator()
+    if fine:
+        pseudo_size = len(y_train) // 2
+        X_train = np.array(list(X_train) + [None] * pseudo_size)
+        y_train = np.array(list(y_train) + [None] * pseudo_size)
+        X_test = _data.load_test_data()
+        X_test = np.mean([_get_meta_features('test', X_test, i) for i in range(5)], axis=0)
+        _, pi = tk.ml.cv_indices(X_test, np.zeros((len(X_test),)), cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)
+        pred_test = predict_all('test', X_test, use_cache=True)[(args.cv_index + 1) % CV_COUNT]  # pseudo-labeling
+        gen.add(tk.generator.RandomPickData(X_test[pi], pred_test[pi]))
     gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True))
     # gen.add(tk.image.Padding(probability=1, with_output=True))
     # gen.add(tk.image.RandomRotate(probability=0.25, with_output=True))
@@ -64,11 +76,13 @@ def _train(args):
     # gen.add(tk.image.Resize((101, 101), with_output=True))
 
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
-    model.compile(sgd_lr=0.01 / 128, loss=tk.dl.losses.lovasz_hinge_elup1, metrics=[tk.dl.metrics.binary_accuracy], clipnorm=10.0)
+    if fine:
+        model.load_weights(MODELS_DIR / f'model.fold{args.cv_index}.h5')
+    model.compile(sgd_lr=0.001 / 128 if fine else 0.01 / 128, loss=tk.dl.losses.lovasz_hinge_elup1, metrics=[tk.dl.metrics.binary_accuracy], clipnorm=10.0)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
-        epochs=EPOCHS,
-        cosine_annealing=True, mixup=False, lr_warmup=True)
+        epochs=EPOCHS // 3 if fine else EPOCHS,
+        cosine_annealing=True, mixup=False)
     model.save(MODELS_DIR / f'model.fold{args.cv_index}.h5', include_optimizer=False)
 
     if tk.dl.hvd.is_master():
