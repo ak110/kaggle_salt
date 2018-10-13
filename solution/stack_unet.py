@@ -3,6 +3,7 @@ import argparse
 import pathlib
 
 import numpy as np
+import sklearn.externals.joblib as joblib
 
 import _data
 import _evaluation
@@ -11,6 +12,7 @@ import pytoolkit as tk
 MODEL_NAME = pathlib.Path(__file__).stem
 MODELS_DIR = pathlib.Path(f'models/{MODEL_NAME}')
 REPORTS_DIR = pathlib.Path('reports')
+CACHE_DIR = pathlib.Path('cache')
 CV_COUNT = 5
 INPUT_SIZE = (101, 101)
 BATCH_SIZE = 16
@@ -137,13 +139,23 @@ def _predict():
     X_test = _data.load_test_data()
     threshold = float((MODELS_DIR / 'threshold.txt').read_text())
     logger.info(f'threshold = {threshold:.3f}')
-    pred_list = [predict_all('test', X_test, chilld_cv_index) for chilld_cv_index in range(5)]
+    pred_list = predict_all('test', X_test)
     pred = np.mean(pred_list, axis=0) > threshold
     _data.save_submission(MODELS_DIR / 'submission.csv', pred)
 
 
-def predict_all(data_name, X, chilld_cv_index=None):
+def predict_all(data_name, X, use_cache=False, child_cv_index=None):
     """予測。"""
+    cache_path = CACHE_DIR / data_name / f'{MODEL_NAME}.pkl'
+    if use_cache and cache_path.is_file() and child_cv_index is None:
+        return joblib.load(cache_path)
+
+    if data_name == 'test' and child_cv_index is None:
+        pred = [predict_all(data_name, X, use_cache, i) for i in range(5)]
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump(pred, cache_path, compress=3)
+        return pred
+
     if data_name == 'val':
         X_val = _get_meta_features(data_name, X)
         X_list, vi_list = [], []
@@ -153,7 +165,7 @@ def predict_all(data_name, X, chilld_cv_index=None):
             X_list.append(X_val[vi])
             vi_list.append(vi)
     else:
-        X_test = _get_meta_features(data_name, X, chilld_cv_index)
+        X_test = _get_meta_features(data_name, X, child_cv_index)
         X_list = [X_test] * CV_COUNT
 
     gen = tk.generator.SimpleGenerator()
@@ -177,6 +189,10 @@ def predict_all(data_name, X, chilld_cv_index=None):
             pred[vi] = p
     else:
         pred = np.mean(pred_list, axis=0)
+
+    if data_name != 'test':
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump(pred, cache_path, compress=3)
     return pred
 
 
