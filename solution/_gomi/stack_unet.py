@@ -16,7 +16,7 @@ CACHE_DIR = pathlib.Path('cache')
 CV_COUNT = 5
 INPUT_SIZE = (101, 101)
 BATCH_SIZE = 16
-EPOCHS = 128
+EPOCHS = 300
 
 
 def _main():
@@ -65,7 +65,7 @@ def _train(args, fine=False):
         X_train = np.array(list(X_train) + [None] * pseudo_size)
         y_train = np.array(list(y_train) + [None] * pseudo_size)
         X_test = _data.load_test_data()
-        X_test = np.mean([_get_meta_features('test', X_test, i) for i in range(5)], axis=0)
+        X_test = _get_meta_features('test', X_test, args.cv_index)  # ←cv_indexはどれがいいとか無いので適当
         _, pi = tk.ml.cv_indices(X_test, np.zeros((len(X_test),)), cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)
         pred_test = predict_all('test', X_test, use_cache=True)[(args.cv_index + 1) % CV_COUNT]  # pseudo-labeling
         gen.add(tk.generator.RandomPickData(X_test[pi], pred_test[pi]))
@@ -112,7 +112,7 @@ def _create_network(input_dims):
 
     x = builder.conv2d(512)(x)
     x = builder.conv2d(512)(x)
-    x = keras.layers.GlobalMaxPooling2D()(x)
+    x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(256)(x)
     x = builder.act()(x)
     x = builder.dense(7 * 7 * 32)(x)

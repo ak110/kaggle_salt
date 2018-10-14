@@ -1,0 +1,23 @@
+[INFO ] Accuracy: 0.972 <__main__:ml.py:717>
+[INFO ] F1-score: 0.943 <__main__:ml.py:718>
+[INFO ] AUC:      0.990 <__main__:ml.py:719>
+[INFO ] Logloss:  0.091 <__main__:ml.py:720>
+[INFO ] scores: <__main__:_evaluation.py:44>
+[INFO ]   threshold=0.300: score=0.873 <__main__:_evaluation.py:46>
+[INFO ]   threshold=0.340: score=0.876 <__main__:_evaluation.py:46>
+[INFO ]   threshold=0.381: score=0.877 <__main__:_evaluation.py:46>
+[INFO ]   threshold=0.421: score=0.877 <__main__:_evaluation.py:46>
+[INFO ]   threshold=0.462: score=0.877 <__main__:_evaluation.py:46>
+[INFO ]   threshold=0.502: score=0.877 <__main__:_evaluation.py:46>
+[INFO ]   threshold=0.542: score=0.877 <__main__:_evaluation.py:46>
+[INFO ]   threshold=0.583: score=0.876 <__main__:_evaluation.py:46>
+[INFO ]   threshold=0.623: score=0.877 <__main__:_evaluation.py:46>
+[INFO ]   threshold=0.664: score=0.875 <__main__:_evaluation.py:46>
+[INFO ] max score: 0.877 (threshold: 0.421) <__main__:_evaluation.py:49>
+[INFO ] IoU mean:  0.852 <__main__:_evaluation.py:107>
+[INFO ] Acc empty: 0.971 <__main__:_evaluation.py:112>
+[INFO ] threshold = 0.421 <__main__:mean.py:48>
+[INFO ] empty rate: 7349.0/18000 = 40.8% <_data:_data.py:53>
+[INFO ] empty rate: 7381.0/18000 = 41.0% <_data:_data.py:53>
+[INFO ] empty rate: 7427.0/18000 = 41.3% <_data:_data.py:53>
+[INFO ] empty rate: 7493.0/18000 = 41.6% <_data:_data.py:53>

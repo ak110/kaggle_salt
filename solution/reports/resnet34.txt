@@ -1,8 +1,19 @@
-[INFO ] gpu count = 4 <pytoolkit.pytoolkit.dl.models:models.py:25>
-[INFO ] Accuracy: 0.959 <__main__:ml.py:670>
-[INFO ] F1-score: 0.917 <__main__:ml.py:671>
-[INFO ] AUC:      0.987 <__main__:ml.py:672>
-[INFO ] Logloss:  0.133 <__main__:ml.py:673>
-[INFO ] score: 0.833 (threshold: 0.500) <__main__:evaluation.py:17>
-[INFO ] IoU mean:  0.796 <__main__:evaluation.py:49>
-[INFO ] Acc empty: 0.961 <__main__:evaluation.py:54>
+[INFO ] gpu count = 4 <pytoolkit.pytoolkit.dl.models:models.py:27>
+[INFO ] Accuracy: 0.966 <__main__:ml.py:717>
+[INFO ] F1-score: 0.931 <__main__:ml.py:718>
+[INFO ] AUC:      0.990 <__main__:ml.py:719>
+[INFO ] Logloss:  0.122 <__main__:ml.py:720>
+[INFO ] scores: <__main__:_evaluation.py:44>
+[INFO ]   threshold=0.300: score=0.845 <__main__:_evaluation.py:46>
+[INFO ]   threshold=0.340: score=0.846 <__main__:_evaluation.py:46>
+[INFO ]   threshold=0.381: score=0.849 <__main__:_evaluation.py:46>
+[INFO ]   threshold=0.421: score=0.850 <__main__:_evaluation.py:46>
+[INFO ]   threshold=0.462: score=0.851 <__main__:_evaluation.py:46>
+[INFO ]   threshold=0.502: score=0.852 <__main__:_evaluation.py:46>
+[INFO ]   threshold=0.542: score=0.852 <__main__:_evaluation.py:46>
+[INFO ]   threshold=0.583: score=0.852 <__main__:_evaluation.py:46>
+[INFO ]   threshold=0.623: score=0.850 <__main__:_evaluation.py:46>
+[INFO ]   threshold=0.664: score=0.849 <__main__:_evaluation.py:46>
+[INFO ] max score: 0.852 (threshold: 0.510) <__main__:_evaluation.py:49>
+[INFO ] IoU mean:  0.819 <__main__:_evaluation.py:107>
+[INFO ] Acc empty: 0.963 <__main__:_evaluation.py:112>
