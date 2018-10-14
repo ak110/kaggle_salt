@@ -49,7 +49,7 @@ def _train(args):
     (MODELS_DIR / 'split_seed.txt').write_text(str(split_seed))
 
     X, y = _data.load_train_data()
-    X = _get_meta_features('val', X)
+    X = get_meta_features('val', X)
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)
     (X_train, y_train), (X_val, y_val) = (X[ti], y[ti]), (X[vi], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
@@ -134,7 +134,7 @@ def predict_all(data_name, X, use_cache=False, child_cv_index=None):
         return pred
 
     if data_name == 'val':
-        X_val = _get_meta_features(data_name, X)
+        X_val = get_meta_features(data_name, X)
         X_list, vi_list = [], []
         split_seed = int((MODELS_DIR / 'split_seed.txt').read_text())
         for cv_index in range(CV_COUNT):
@@ -142,7 +142,7 @@ def predict_all(data_name, X, use_cache=False, child_cv_index=None):
             X_list.append(X_val[vi])
             vi_list.append(vi)
     else:
-        X_test = _get_meta_features(data_name, X, child_cv_index)
+        X_test = get_meta_features(data_name, X, child_cv_index)
         X_list = [X_test] * CV_COUNT
 
     gen = tk.generator.SimpleGenerator()
@@ -173,7 +173,7 @@ def predict_all(data_name, X, use_cache=False, child_cv_index=None):
     return pred
 
 
-def _get_meta_features(data_name, X, cv_index=None):
+def get_meta_features(data_name, X, cv_index=None):
     """子モデルのout-of-fold predictionsを取得。"""
     import bin_nas
     import reg_nas
