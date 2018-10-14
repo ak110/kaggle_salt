@@ -63,8 +63,7 @@ def _train(args, fine=False):
         X_test = _data.load_test_data()
         _, pi = tk.ml.cv_indices(X_test, np.zeros((len(X_test),)), cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)
         import stack_res
-        mf_test = stack_res.get_meta_features('test', X_test, args.cv_index)
-        pred_test = stack_res.predict_all('test', mf_test, use_cache=True)[(args.cv_index + 1) % CV_COUNT]  # cross-pseudo-labeling
+        pred_test = stack_res.predict_all('test', None, use_cache=True)[(args.cv_index + 1) % CV_COUNT]  # cross-pseudo-labeling
         gen.add(tk.generator.RandomPickData(X_test[pi], pred_test[pi]))
     if fine:
         lr_multipliers = None
