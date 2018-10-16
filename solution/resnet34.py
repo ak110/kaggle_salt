@@ -16,7 +16,7 @@ REPORTS_DIR = pathlib.Path('reports')
 CACHE_DIR = pathlib.Path('cache')
 CV_COUNT = 5
 INPUT_SIZE = (101, 101)
-BATCH_SIZE = 16
+BATCH_SIZE = 24
 EPOCHS = 300
 
 
@@ -66,8 +66,6 @@ def _train(args, fine=False):
         import stack_res
         pred_test = stack_res.predict_all('test', None, use_cache=True)[(args.cv_index + 1) % CV_COUNT]  # cross-pseudo-labeling
         gen.add(tk.generator.RandomPickData(X_test[pi], pred_test[pi]))
-    if fine:
-        lr_multipliers = None
     gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True))
     gen.add(tk.image.Padding(probability=1, with_output=True))
     gen.add(tk.image.RandomRotate(probability=0.25, with_output=True))
@@ -83,7 +81,7 @@ def _train(args, fine=False):
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
     if fine:
         model.load_weights(MODELS_DIR / f'model.fold{args.cv_index}.h5')
-    model.compile(sgd_lr=0.001 / 128 if fine else 0.1 / 128, loss=tk.dl.losses.lovasz_hinge_elup1,
+    model.compile(sgd_lr=0.01 / 128 if fine else 0.1 / 128, loss=tk.dl.losses.lovasz_hinge_elup1,
                   metrics=[tk.dl.metrics.binary_accuracy], lr_multipliers=lr_multipliers, clipnorm=10.0)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
@@ -108,7 +106,7 @@ def _create_network():
     x = tk.dl.layers.pad2d()(((5, 6), (5, 6)), mode='reflect')(x)  # 112
     x = keras.layers.concatenate([x, x, x])
     base_network = ResNet34(include_top=False, input_shape=(112, 112, 3), input_tensor=x, weights='imagenet')
-    lr_multipliers = {l: 0.1 for l in base_network.layers}
+    lr_multipliers = {l: 0.03 for l in base_network.layers}
     down_list = []
     down_list.append(base_network.get_layer(name='relu0').output)  # stage 1: 112
     down_list.append(base_network.get_layer(name='stage2_unit1_relu1').output)  # stage 2: 56
@@ -120,12 +118,12 @@ def _create_network():
     x = keras.layers.GlobalAveragePooling2D()(x)
     x = builder.dense(256)(x)
     x = builder.act()(x)
-    x = builder.dense(7 * 7 * 32)(x)
+    x = builder.dense(7 * 7 * 64)(x)
     x = builder.act()(x)
     x = keras.layers.Reshape((1, 1, -1))(x)
 
     up_list = []
-    for stage, (d, filters) in list(enumerate(zip(down_list, [64, 128, 256, 512, 512])))[::-1]:
+    for stage, (d, filters) in list(enumerate(zip(down_list, [64, 128, 256, 256, 256])))[::-1]:
         x = tk.dl.layers.subpixel_conv2d()(scale=2 if stage != 4 else 7)(x)
         x = tk.dl.layers.coord_channel_2d()(x_channel=False)(x)
         d = builder.scse_block(builder.shape(d)[-1])(d)

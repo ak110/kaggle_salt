@@ -65,8 +65,6 @@ def _train(args, fine=False):
         import stack_res
         pred_test = stack_res.predict_all('test', None, use_cache=True)[(args.cv_index + 1) % CV_COUNT]  # cross-pseudo-labeling
         gen.add(tk.generator.RandomPickData(X_test[pi], pred_test[pi]))
-    if fine:
-        lr_multipliers = None
     gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True))
     gen.add(tk.image.Padding(probability=1, with_output=True))
     gen.add(tk.image.RandomRotate(probability=0.25, with_output=True))
@@ -82,7 +80,7 @@ def _train(args, fine=False):
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
     if fine:
         model.load_weights(MODELS_DIR / f'model.fold{args.cv_index}.h5')
-    model.compile(sgd_lr=0.001 / 128 if fine else 0.1 / 128, loss=tk.dl.losses.lovasz_hinge_elup1,
+    model.compile(sgd_lr=0.01 / 128 if fine else 0.1 / 128, loss=tk.dl.losses.lovasz_hinge_elup1,
                   metrics=[tk.dl.metrics.binary_accuracy], lr_multipliers=lr_multipliers, clipnorm=10.0)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),
