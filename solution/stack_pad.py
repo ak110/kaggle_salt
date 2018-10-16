@@ -15,7 +15,7 @@ REPORTS_DIR = pathlib.Path('reports')
 CACHE_DIR = pathlib.Path('cache')
 CV_COUNT = 5
 INPUT_SIZE = (101, 101)
-BATCH_SIZE = 32
+BATCH_SIZE = 16
 EPOCHS = 32
 
 
@@ -85,14 +85,21 @@ def _create_network(input_dims):
     ]
     x = inputs[0]
     x = tk.dl.layers.coord_channel_2d()(x_channel=False)(x)
-    x = keras.layers.concatenate([x, tk.dl.layers.channel_pair_2d()()(x)])
-    x = builder.conv2d(128, 1, use_act=False)(x)
-    x = builder.res_block(128)(x)
-    x = builder.res_block(128)(x)
-    x = builder.res_block(128)(x)
-    x = builder.res_block(128)(x)
-    x = builder.bn_act()(x)
-    x = builder.scse_block(128)(x)
+    x = tk.dl.layers.pad2d()(8, mode='reflect')(x)
+    for _ in range(8):
+        b = builder.conv2d(16)(x)
+        x = keras.layers.concatenate([x, b])
+    x = keras.layers.Cropping2D(8)(x)
+
+    a = keras.layers.concatenate([
+        keras.layers.GlobalAveragePooling2D()(x),
+        keras.layers.GlobalMaxPooling2D()(x),
+    ])
+    a = builder.dense(32)(a)
+    a = builder.dense(builder.shape(x)[-1], activation='sigmoid')(a)
+    a = keras.layers.multiply([x, a])
+    x = keras.layers.concatenate([x, a])
+
     x = builder.conv2d(1, 1, use_bias=True, use_bn=False, activation='sigmoid')(x)
 
     network = keras.models.Model(inputs, x)

@@ -67,11 +67,11 @@ def _train(args, fine=False):
         _, pi = tk.ml.cv_indices(X_test, np.zeros((len(X_test),)), cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)
         pred_test = predict_all('test', None, use_cache=True)[(args.cv_index + 1) % CV_COUNT]  # cross-pseudo-labeling
         gen.add(tk.generator.RandomPickData(X_test[pi], pred_test[pi]))
-        lr_multipliers = None
     gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True))
-    gen.add(tk.image.Padding(probability=1, with_output=True))
-    gen.add(tk.image.RandomRotate(probability=0.25, with_output=True))
-    gen.add(tk.image.RandomCrop(probability=1, with_output=True))
+    if not fine:
+        gen.add(tk.image.Padding(probability=1, with_output=True))
+        gen.add(tk.image.RandomRotate(probability=0.25, with_output=True))
+        gen.add(tk.image.RandomCrop(probability=1, with_output=True))
     gen.add(tk.image.RandomAugmentors([
         tk.image.RandomBlur(probability=0.125),
         tk.image.RandomUnsharpMask(probability=0.125),

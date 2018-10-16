@@ -84,13 +84,23 @@ def _create_network(input_dims):
         builder.input_tensor(INPUT_SIZE + (input_dims,)),
     ]
     x = inputs[0]
+    x = tk.dl.layers.coord_channel_2d()(x_channel=False)(x)
     x = keras.layers.concatenate([x, tk.dl.layers.channel_pair_2d()()(x)])
     x = builder.conv2d(128, 1, use_act=False)(x)
     x = builder.res_block(128)(x)
     x = builder.res_block(128)(x)
     x = builder.res_block(128)(x)
     x = builder.bn_act()(x)
-    x = builder.scse_block(128)(x)
+
+    a = keras.layers.concatenate([
+        keras.layers.GlobalAveragePooling2D()(x),
+        keras.layers.GlobalMaxPooling2D()(x),
+    ])
+    a = builder.dense(32)(a)
+    a = builder.dense(builder.shape(x)[-1], activation='sigmoid')(a)
+    a = keras.layers.multiply([x, a])
+    x = keras.layers.concatenate([x, a])
+
     x = builder.conv2d(1, 1, use_bias=True, use_bn=False, activation='sigmoid')(x)
 
     network = keras.models.Model(inputs, x)

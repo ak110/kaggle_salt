@@ -88,6 +88,16 @@ def _create_network(input_dims):
     for _ in range(8):
         b = builder.conv2d(16)(x)
         x = keras.layers.concatenate([x, b])
+
+    a = keras.layers.concatenate([
+        keras.layers.GlobalAveragePooling2D()(x),
+        keras.layers.GlobalMaxPooling2D()(x),
+    ])
+    a = builder.dense(32)(a)
+    a = builder.dense(builder.shape(x)[-1], activation='sigmoid')(a)
+    a = keras.layers.multiply([x, a])
+    x = keras.layers.concatenate([x, a])
+
     x = builder.conv2d(1, 1, use_bias=True, use_bn=False, activation='sigmoid')(x)
 
     network = keras.models.Model(inputs, x)

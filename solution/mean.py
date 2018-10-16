@@ -55,18 +55,16 @@ def _predict():
 
 @tk.log.trace()
 def predict_all(data_name, X):
-    import stack_3x3
     import stack_dense
+    import stack_pad
     import stack_res
-    import stack_res2
     def _get(pred):
         return pred if data_name == 'val' else np.mean(pred, axis=0)
     return np.average([
-        _get(stack_3x3.predict_all(data_name, X, use_cache=True)),
         _get(stack_dense.predict_all(data_name, X, use_cache=True)),
+        _get(stack_pad.predict_all(data_name, X, use_cache=True)),
         _get(stack_res.predict_all(data_name, X, use_cache=True)),
-        _get(stack_res2.predict_all(data_name, X, use_cache=True)),
-    ], weights=[0.5, 0.75, 1.0, 1.0], axis=0)
+    ], weights=[1.0, 1.5, 1.3], axis=0)
 
 
 if __name__ == '__main__':
