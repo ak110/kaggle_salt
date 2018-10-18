@@ -7,6 +7,7 @@ import sklearn.externals.joblib as joblib
 
 import _data
 import _evaluation
+import _mf
 import pytoolkit as tk
 
 MODEL_NAME = pathlib.Path(__file__).stem
@@ -49,7 +50,7 @@ def _train(args):
     (MODELS_DIR / 'split_seed.txt').write_text(str(split_seed))
 
     X, y = _data.load_train_data()
-    X = get_meta_features('val', X)
+    X = _mf.get_meta_features('val', X)
     ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=args.cv_index, split_seed=split_seed, stratify=False)
     (X_train, y_train), (X_val, y_val) = (X[ti], y[ti]), (X[vi], y[vi])
     logger.info(f'cv_index={args.cv_index}: train={len(y_train)} val={len(y_val)}')
@@ -140,7 +141,7 @@ def predict_all(data_name, X, use_cache=False, child_cv_index=None):
         return pred
 
     if data_name == 'val':
-        X_val = get_meta_features(data_name, X)
+        X_val = _mf.get_meta_features(data_name, X)
         X_list, vi_list = [], []
         split_seed = int((MODELS_DIR / 'split_seed.txt').read_text())
         for cv_index in range(CV_COUNT):
@@ -148,7 +149,7 @@ def predict_all(data_name, X, use_cache=False, child_cv_index=None):
             X_list.append(X_val[vi])
             vi_list.append(vi)
     else:
-        X_test = get_meta_features(data_name, X, child_cv_index)
+        X_test = _mf.get_meta_features(data_name, X, child_cv_index)
         X_list = [X_test] * CV_COUNT
 
     gen = tk.generator.SimpleGenerator()
@@ -177,32 +178,6 @@ def predict_all(data_name, X, use_cache=False, child_cv_index=None):
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         joblib.dump(pred, cache_path, compress=3)
     return pred
-
-
-def get_meta_features(data_name, X, cv_index=None):
-    """子モデルのout-of-fold predictionsを取得。"""
-    import bin_nas
-    import reg_nas
-    import darknet53_large2  # 0.859
-    import darknet53_resize128  # 0.859
-    import darknet53_sepscse  # 0.863
-
-    def _get(m):
-        if data_name == 'val':
-            return m
-        else:
-            assert len(m) == 5
-            return m[cv_index]
-
-    X = np.concatenate([
-        X / 255,
-        np.repeat(_get(bin_nas.predict_all(data_name, X, use_cache=True)), 101 * 101).reshape(len(X), 101, 101, 1),
-        np.repeat(_get(reg_nas.predict_all(data_name, X, use_cache=True)), 101 * 101).reshape(len(X), 101, 101, 1),
-        _get(darknet53_large2.predict_all(data_name, X, use_cache=True)),
-        _get(darknet53_resize128.predict_all(data_name, X, use_cache=True)),
-        _get(darknet53_sepscse.predict_all(data_name, X, use_cache=True)),
-    ], axis=-1)
-    return X
 
 
 if __name__ == '__main__':
