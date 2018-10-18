@@ -80,7 +80,7 @@ def _train(args, fine=False):
     model = tk.dl.models.Model(network, gen, batch_size=BATCH_SIZE)
     if fine:
         model.load_weights(MODELS_DIR / f'model.fold{args.cv_index}.h5')
-    model.compile(sgd_lr=0.01 / 128 if fine else 0.1 / 128, loss=tk.dl.losses.lovasz_hinge_elup1,
+    model.compile(sgd_lr=0.001 / 128 if fine else 0.1 / 128, loss=tk.dl.losses.lovasz_hinge_elup1,
                   metrics=[tk.dl.metrics.binary_accuracy], lr_multipliers=lr_multipliers, clipnorm=10.0)
     model.fit(
         X_train, y_train, validation_data=(X_val, y_val),

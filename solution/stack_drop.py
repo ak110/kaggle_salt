@@ -15,7 +15,7 @@ REPORTS_DIR = pathlib.Path('reports')
 CACHE_DIR = pathlib.Path('cache')
 CV_COUNT = 5
 INPUT_SIZE = (101, 101)
-BATCH_SIZE = 32
+BATCH_SIZE = 16
 EPOCHS = 64
 
 
@@ -86,11 +86,10 @@ def _create_network(input_dims):
     x = inputs[0]
     x = tk.dl.layers.coord_channel_2d()(x_channel=False)(x)
     x = keras.layers.concatenate([x, tk.dl.layers.channel_pair_2d()()(x)])
-    x = builder.conv2d(128, 1, use_act=False)(x)
-    x = builder.res_block(128)(x)
-    x = builder.res_block(128)(x)
-    x = builder.res_block(128)(x)
-    x = builder.bn_act()(x)
+    for _ in range(8):
+        b = keras.layers.Dropout(0.25)(x)
+        b = builder.conv2d(32, use_bn=False)(b)
+        x = keras.layers.concatenate([x, b])
 
     a = keras.layers.concatenate([
         keras.layers.GlobalAveragePooling2D()(x),

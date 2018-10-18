@@ -184,7 +184,6 @@ def get_meta_features(data_name, X, cv_index=None):
     """子モデルのout-of-fold predictionsを取得。"""
     import bin_nas
     import reg_nas
-    import darknet53_coord_hcs  # 0.860
     import darknet53_large2  # 0.859
     import darknet53_resize128  # 0.859
     import darknet53_sepscse  # 0.863
@@ -200,10 +199,11 @@ def get_meta_features(data_name, X, cv_index=None):
         X / 255,
         np.repeat(_get(bin_nas.predict_all(data_name, X, use_cache=True)), 101 * 101).reshape(len(X), 101, 101, 1),
         np.repeat(_get(reg_nas.predict_all(data_name, X, use_cache=True)), 101 * 101).reshape(len(X), 101, 101, 1),
-        _get(darknet53_coord_hcs.predict_all(data_name, X, use_cache=True)),
-        _get(darknet53_large2.predict_all(data_name, X, use_cache=True)),
-        _get(darknet53_resize128.predict_all(data_name, X, use_cache=True)),
-        _get(darknet53_sepscse.predict_all(data_name, X, use_cache=True)),
+        np.mean([
+            _get(darknet53_large2.predict_all(data_name, X, use_cache=True)),
+            _get(darknet53_resize128.predict_all(data_name, X, use_cache=True)),
+            _get(darknet53_sepscse.predict_all(data_name, X, use_cache=True)),
+        ]),
     ], axis=-1)
     return X
 

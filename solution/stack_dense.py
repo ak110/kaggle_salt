@@ -16,7 +16,7 @@ CACHE_DIR = pathlib.Path('cache')
 CV_COUNT = 5
 INPUT_SIZE = (101, 101)
 BATCH_SIZE = 16
-EPOCHS = 32
+EPOCHS = 64
 
 
 def _main():
@@ -85,8 +85,9 @@ def _create_network(input_dims):
     ]
     x = inputs[0]
     x = tk.dl.layers.coord_channel_2d()(x_channel=False)(x)
+    x = keras.layers.concatenate([x, tk.dl.layers.channel_pair_2d()()(x)])
     for _ in range(8):
-        b = builder.conv2d(16)(x)
+        b = builder.conv2d(32)(x)
         x = keras.layers.concatenate([x, b])
 
     a = keras.layers.concatenate([
@@ -182,7 +183,6 @@ def get_meta_features(data_name, X, cv_index=None):
     """子モデルのout-of-fold predictionsを取得。"""
     import bin_nas
     import reg_nas
-    import darknet53_coord_hcs  # 0.860
     import darknet53_large2  # 0.859
     import darknet53_resize128  # 0.859
     import darknet53_sepscse  # 0.863
@@ -198,7 +198,6 @@ def get_meta_features(data_name, X, cv_index=None):
         X / 255,
         np.repeat(_get(bin_nas.predict_all(data_name, X, use_cache=True)), 101 * 101).reshape(len(X), 101, 101, 1),
         np.repeat(_get(reg_nas.predict_all(data_name, X, use_cache=True)), 101 * 101).reshape(len(X), 101, 101, 1),
-        _get(darknet53_coord_hcs.predict_all(data_name, X, use_cache=True)),
         _get(darknet53_large2.predict_all(data_name, X, use_cache=True)),
         _get(darknet53_resize128.predict_all(data_name, X, use_cache=True)),
         _get(darknet53_sepscse.predict_all(data_name, X, use_cache=True)),

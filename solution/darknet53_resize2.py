@@ -65,8 +65,6 @@ def _train(args, fine=False):
         import stack_res
         pred_test = stack_res.predict_all('test', None, use_cache=True)[(args.cv_index + 1) % CV_COUNT]  # cross-pseudo-labeling
         gen.add(tk.generator.RandomPickData(X_test[pi], pred_test[pi]))
-    if fine:
-        lr_multipliers = None
     gen.add(tk.image.RandomFlipLR(probability=0.5, with_output=True))
     gen.add(tk.image.Padding(probability=1, with_output=True))
     gen.add(tk.image.RandomRotate(probability=0.25, with_output=True))
