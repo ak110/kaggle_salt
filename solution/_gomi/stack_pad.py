@@ -11,7 +11,6 @@ import pytoolkit as tk
 
 MODEL_NAME = pathlib.Path(__file__).stem
 MODELS_DIR = pathlib.Path(f'models/{MODEL_NAME}')
-REPORTS_DIR = pathlib.Path('reports')
 CACHE_DIR = pathlib.Path('cache')
 CV_COUNT = 5
 INPUT_SIZE = (101, 101)
@@ -32,7 +31,7 @@ def _main():
             tk.log.init(MODELS_DIR / f'train.fold{args.cv_index}.log')
             _train(args)
         elif args.mode == 'validate':
-            tk.log.init(REPORTS_DIR / f'{MODEL_NAME}.txt', file_level='INFO')
+            tk.log.init(MODELS_DIR / 'validate.log')
             _validate()
         elif args.mode == 'predict':
             tk.log.init(MODELS_DIR / 'predict.log')
