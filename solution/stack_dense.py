@@ -5,6 +5,7 @@ import pathlib
 import numpy as np
 import sklearn.externals.joblib as joblib
 
+import _ath
 import _data
 import _evaluation
 import _mf
@@ -110,10 +111,18 @@ def _validate():
     """検証＆閾値決定。"""
     logger = tk.log.get(__name__)
     X, y = _data.load_train_data()
-    pred = predict_all('val', X)
+    pred = predict_all('val', X, use_cache=True)  # TODO: 仮！, use_cache=True
     threshold = _evaluation.log_evaluation(y, pred, print_fn=logger.info, search_th=True)
     (MODELS_DIR / 'threshold.txt').write_text(str(threshold))
-
+    # 閾値の調整
+    split_seed = int((MODELS_DIR / 'split_seed.txt').read_text())
+    thresholds = np.empty((len(y),))
+    for cv_index in range(CV_COUNT):
+        ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=cv_index, split_seed=split_seed, stratify=False)
+        threshold_X, threshold_y = _ath.create_data(y[ti], pred[ti])
+        estimator = _ath.create_estimator(threshold_X, threshold_y)
+        thresholds[vi] = estimator.predict(_ath.create_input_data(pred[vi]))
+    _evaluation.log_evaluation(y, pred, print_fn=logger.info, threshold=thresholds)
 
 @tk.log.trace()
 def _predict():

@@ -26,7 +26,7 @@ def predict_tta(model, X_t, mode='ss'):
     return pred
 
 
-def log_evaluation(y_val, pred_val, print_fn=None, search_th=False):
+def log_evaluation(y_val, pred_val, print_fn=None, search_th=False, threshold=None):
     """検証結果をログる。"""
     print_fn = print_fn or tk.log.get(__name__).info
 
@@ -35,6 +35,7 @@ def log_evaluation(y_val, pred_val, print_fn=None, search_th=False):
 
     # 閾値探索＆スコア表示
     if search_th:
+        assert threshold is None
         threshold_list = np.linspace(0.3, 0.7, 100)
         score_list = []
         for th in tk.tqdm(threshold_list, desc='threshold'):
@@ -48,9 +49,12 @@ def log_evaluation(y_val, pred_val, print_fn=None, search_th=False):
         score = score_list[best_index]
         print_fn(f'max score: {score:.3f} (threshold: {threshold:.3f})')
     else:
-        threshold = 0.5
+        if threshold is None:
+            threshold = 0.5
+        else:
+            print_fn(f'mean threshold: {np.mean(threshold):.3f}')
         score = compute_score(np.int32(y_val > 0.5), np.int32(pred_val > threshold))
-        print_fn(f'score: {score:.3f} (threshold: {threshold:.3f})')
+        print_fn(f'score: {score:.3f}')
 
     # オレオレ指標
     print_metrics(np.int32(y_val > 0.5), np.int32(pred_val > threshold), print_fn=print_fn)
