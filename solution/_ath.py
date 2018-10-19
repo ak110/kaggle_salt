@@ -55,6 +55,7 @@ def create_input_data(pred, pred_bin, pred_reg):
         np.percentile(pred, 80, axis=(1, 2, 3)),
         np.percentile(pred, 90, axis=(1, 2, 3)),
     ], 0, 1)
+    threshold_X = np.concatenate([threshold_X, pred_bin, pred_reg], axis=-1)
     return threshold_X
 
 

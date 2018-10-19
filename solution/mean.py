@@ -41,14 +41,10 @@ def _validate():
 
 def _predict():
     """予測。"""
-    logger = tk.log.get(__name__)
     X_test = _data.load_test_data()
-    threshold = float((MODELS_DIR / 'threshold.txt').read_text())
-    logger.info(f'threshold = {threshold:.3f}')
     pred = predict_all('test', X_test)
-    _data.save_submission(MODELS_DIR / 'submission.csv', pred > threshold)
+    _data.save_submission(MODELS_DIR / 'submission.csv', pred > 0.50)
     _data.save_submission(MODELS_DIR / 'submission_0.45.csv', pred > 0.45)
-    _data.save_submission(MODELS_DIR / 'submission_0.50.csv', pred > 0.50)
     _data.save_submission(MODELS_DIR / 'submission_0.55.csv', pred > 0.55)
 
 
