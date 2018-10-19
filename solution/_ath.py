@@ -10,9 +10,9 @@ MIN_THRESHOLD = 0.3
 MAX_THRESHOLD = 0.7
 
 
-def create_data(y, pred, pred_bin, pred_reg):
+def create_data(y, pred):
     """Create adaptive threshold data."""
-    threshold_X = create_input_data(pred, pred_bin, pred_reg)
+    threshold_X = create_input_data(pred)
 
     mask_neg = y.max(axis=(1, 2, 3)) == 0
     mask_pos = np.logical_not(mask_neg)
@@ -40,7 +40,7 @@ def create_data(y, pred, pred_bin, pred_reg):
     return threshold_X, threshold_y
 
 
-def create_input_data(pred, pred_bin, pred_reg):
+def create_input_data(pred):
     """閾値を予測する用の入力。"""
     threshold_X = np.swapaxes([
         np.max(pred, axis=(1, 2, 3)),
