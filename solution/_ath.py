@@ -10,15 +10,18 @@ MIN_THRESHOLD = 0.3
 MAX_THRESHOLD = 0.7
 
 
-def create_data(y, pred):
+def create_data(y, pred, pred_bin, pred_reg):
     """Create adaptive threshold data."""
-    threshold_X = create_input_data(pred)
+    threshold_X = create_input_data(pred, pred_bin, pred_reg)
 
     mask_neg = y.max(axis=(1, 2, 3)) == 0
     mask_pos = np.logical_not(mask_neg)
     y_pos = y > 0.5
 
     threshold_y = np.empty((len(y),))
+
+    th_neg = (pred[mask_neg].max(axis=(1, 2, 3)) + 1) / 2
+    threshold_y[mask_neg] = np.minimum(np.maximum(th_neg, MIN_THRESHOLD), MAX_THRESHOLD)
 
     for i in tk.tqdm(np.where(mask_pos)[0], desc='ath'):
         threshold_list = np.linspace(MIN_THRESHOLD, MAX_THRESHOLD, 1000)
@@ -32,15 +35,12 @@ def create_data(y, pred):
         best_index = np.argmax(iou_list)
         threshold_y[i] = threshold_list[best_index]
 
-    th_neg = (pred[mask_neg].max(axis=(1, 2, 3)) + 1) / 2
-    threshold_y[mask_neg] = np.minimum(np.maximum(th_neg, MIN_THRESHOLD), MAX_THRESHOLD)
-
     threshold_y = np.array(threshold_y)
 
     return threshold_X, threshold_y
 
 
-def create_input_data(pred):
+def create_input_data(pred, pred_bin, pred_reg):
     """閾値を予測する用の入力。"""
     threshold_X = np.swapaxes([
         np.max(pred, axis=(1, 2, 3)),
@@ -63,5 +63,5 @@ def create_estimator(threshold_X, threshold_y):
     logger = tk.log.get(__name__)
     estimator = sklearn.ensemble.RandomForestRegressor(n_estimators=300, n_jobs=-1)
     estimator.fit(threshold_X, threshold_y)
-    logger.info(f'ath: score={estimator.score(threshold_X, threshold_y)}')
+    logger.info(f'ath: score={estimator.score(threshold_X, threshold_y):.3f}')
     return estimator
