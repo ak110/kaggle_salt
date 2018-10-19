@@ -44,8 +44,10 @@ def _predict():
     X_test = _data.load_test_data()
     pred = predict_all('test', X_test)
     _data.save_submission(MODELS_DIR / 'submission.csv', pred > 0.50)
+    _data.save_submission(MODELS_DIR / 'submission_0.40.csv', pred > 0.40)
     _data.save_submission(MODELS_DIR / 'submission_0.45.csv', pred > 0.45)
     _data.save_submission(MODELS_DIR / 'submission_0.55.csv', pred > 0.55)
+    _data.save_submission(MODELS_DIR / 'submission_0.60.csv', pred > 0.60)
 
 
 @tk.log.trace()
@@ -61,7 +63,7 @@ def predict_all(data_name, X):
         _get(stack_dense.predict_all(data_name, X, use_cache=True)),
         _get(stack_drop.predict_all(data_name, X, use_cache=True)),
         _get(stack_res.predict_all(data_name, X, use_cache=True)),
-    ], weights=[1, 1, 1], axis=0)
+    ], weights=[1, 1.5, 1.3], axis=0)
 
 
 if __name__ == '__main__':
