@@ -5,6 +5,7 @@ import pathlib
 import numpy as np
 import sklearn.externals.joblib as joblib
 
+import _ath
 import _data
 import _evaluation
 import _mf
@@ -112,20 +113,33 @@ def _validate():
     """検証＆閾値決定。"""
     logger = tk.log.get(__name__)
     X, y = _data.load_train_data()
-    pred = predict_all('val', X)
-    threshold = _evaluation.log_evaluation(y, pred, print_fn=logger.info, search_th=True)
-    (MODELS_DIR / 'threshold.txt').write_text(str(threshold))
+    pred = predict_all('val', X, use_cache=True)  # TODO: 仮！, use_cache=True
+    # 閾値の調整
+    pred_bin = joblib.load(CACHE_DIR / 'val' / 'bin_nas.pkl')
+    pred_reg = joblib.load(CACHE_DIR / 'val' / 'reg_nas.pkl')
+    threshold_X, threshold_y = _ath.create_data(y, pred, pred_bin, pred_reg)
+    split_seed = int((MODELS_DIR / 'split_seed.txt').read_text())
+    thresholds = np.empty((len(y),))
+    for cv_index in range(CV_COUNT):
+        ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=cv_index, split_seed=split_seed, stratify=False)
+        ath_estimator = _ath.create_estimator(threshold_X[ti], threshold_y[ti])
+        thresholds[vi] = ath_estimator.predict(threshold_X[vi])
+    # CVで決めた閾値でevaluate
+    _evaluation.log_evaluation(y, pred, print_fn=logger.info, threshold=thresholds)
+    # 全体で学習しなおして保存
+    ath_estimator = _ath.create_estimator(threshold_X, threshold_y)
+    joblib.dump(ath_estimator, MODELS_DIR / 'ath_estimator.pkl')
+    # 最後にインチキ閾値でevaluate
+    thresholds = ath_estimator.predict(threshold_X)
+    _evaluation.log_evaluation(y, pred, print_fn=logger.info, threshold=thresholds)
 
 
 @tk.log.trace()
 def _predict():
     """予測。"""
-    logger = tk.log.get(__name__)
     X_test = _data.load_test_data()
-    threshold = float((MODELS_DIR / 'threshold.txt').read_text())
-    logger.info(f'threshold = {threshold:.3f}')
     pred_list = predict_all('test', X_test)
-    pred = np.mean(pred_list, axis=0) > threshold
+    pred = np.mean(pred_list, axis=0) > 0.5
     _data.save_submission(MODELS_DIR / 'submission.csv', pred)
 
 
@@ -136,7 +150,17 @@ def predict_all(data_name, X, use_cache=False, child_cv_index=None):
         return joblib.load(cache_path)
 
     if data_name == 'test' and child_cv_index is None:
-        pred = [predict_all(data_name, X, use_cache, i) for i in range(5)]
+        pred_bin = np.median(joblib.load(CACHE_DIR / 'test' / 'bin_nas.pkl'), axis=0)
+        pred_reg = np.median(joblib.load(CACHE_DIR / 'test' / 'reg_nas.pkl'), axis=0)
+        ath_estimator = joblib.load(MODELS_DIR / 'ath_estimator.pkl')
+        pred = []
+        for cci in range(5):
+            y_child = []
+            for pc in predict_all(data_name, X, use_cache, cci):
+                threshold_X = _ath.create_input_data(pc, pred_bin, pred_reg)
+                thresholds = ath_estimator.predict(threshold_X)
+                y_child.append(pc > np.reshape(thresholds, (len(pc), 1, 1, 1)))
+            pred.append(np.mean(y_child, axis=0))
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         joblib.dump(pred, cache_path, compress=3)
         return pred
@@ -173,7 +197,7 @@ def predict_all(data_name, X, use_cache=False, child_cv_index=None):
         for vi, p in zip(vi_list, pred_list):
             pred[vi] = p
     else:
-        pred = np.mean(pred_list, axis=0)
+        pred = pred_list
 
     if data_name != 'test':
         cache_path.parent.mkdir(parents=True, exist_ok=True)
