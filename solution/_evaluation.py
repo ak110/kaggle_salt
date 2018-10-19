@@ -52,12 +52,14 @@ def log_evaluation(y_val, pred_val, print_fn=None, search_th=False, threshold=No
         if threshold is None:
             threshold = 0.5
         else:
+            assert threshold.shape == (len(pred_val),)
+            threshold = threshold.reshape((len(pred_val), 1, 1, 1))
             print_fn(f'mean threshold: {np.mean(threshold):.3f}')
         score = compute_score(np.int32(y_val > 0.5), np.int32(pred_val > threshold))
         print_fn(f'score: {score:.3f}')
 
     # オレオレ指標
-    print_metrics(np.int32(y_val > 0.5), np.int32(pred_val > threshold), print_fn=print_fn)
+    print_metrics(y_val > 0.5, pred_val > threshold, print_fn=print_fn)
 
     return threshold
 
@@ -68,22 +70,22 @@ def get_score_fixed_threshold(y_val, pred_val, search_th=True):
         threshold_list = np.linspace(0.3, 0.7, 100)
         score_list = []
         for th in tk.tqdm(threshold_list, desc='threshold'):
-            score = compute_score(np.int32(y_val > 0.5), np.int32(pred_val > th))
+            score = compute_score(y_val > 0.5, pred_val > th)
             score_list.append(score)
         best_index = np.argmax(score_list)
         threshold = threshold_list[best_index]
         score = score_list[best_index]
     else:
         threshold = 0.5
-        score = compute_score(np.int32(y_val > 0.5), np.int32(pred_val > threshold))
+        score = compute_score(y_val > 0.5, pred_val > threshold)
     return score, threshold
 
 
 def compute_score(y_true, y_pred):
     """適当スコア算出。"""
-    obj = np.sum(y_true, axis=(1, 2, 3)) > 0
+    obj = np.any(y_true, axis=(1, 2, 3))
     empty = np.logical_not(obj)
-    pred_empty = np.sum(y_pred, axis=(1, 2, 3)) == 0
+    pred_empty = np.logical_not(np.any(y_pred, axis=(1, 2, 3)))
     tn = np.logical_and(empty, pred_empty)
 
     inter = np.sum(np.logical_and(y_true, y_pred), axis=(1, 2, 3))
@@ -100,7 +102,7 @@ def compute_score(y_true, y_pred):
 
 def print_metrics(y_true, y_pred, print_fn):
     """オレオレ指標。"""
-    obj = np.sum(y_true, axis=(1, 2, 3)) > 0
+    obj = np.any(y_true, axis=(1, 2, 3))
     empty = np.logical_not(obj)
 
     # 答えが空でないときのIoUの平均
@@ -111,6 +113,6 @@ def print_metrics(y_true, y_pred, print_fn):
     print_fn(f'IoU mean:  {iou_mean:.3f}')
 
     # 答えが空の場合の正解率
-    pred_empty = np.sum(y_pred, axis=(1, 2, 3)) == 0
+    pred_empty = np.logical_not(np.any(y_pred, axis=(1, 2, 3)))
     acc_empty = np.sum(np.logical_and(empty, pred_empty)) / np.sum(empty)
     print_fn(f'Acc empty: {acc_empty:.3f}')

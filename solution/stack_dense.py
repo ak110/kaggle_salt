@@ -115,14 +115,16 @@ def _validate():
     threshold = _evaluation.log_evaluation(y, pred, print_fn=logger.info, search_th=True)
     (MODELS_DIR / 'threshold.txt').write_text(str(threshold))
     # 閾値の調整
+    threshold_X, threshold_y = _ath.create_data(y, pred)
     split_seed = int((MODELS_DIR / 'split_seed.txt').read_text())
     thresholds = np.empty((len(y),))
     for cv_index in range(CV_COUNT):
         ti, vi = tk.ml.cv_indices(X, y, cv_count=CV_COUNT, cv_index=cv_index, split_seed=split_seed, stratify=False)
-        threshold_X, threshold_y = _ath.create_data(y[ti], pred[ti])
-        estimator = _ath.create_estimator(threshold_X, threshold_y)
-        thresholds[vi] = estimator.predict(_ath.create_input_data(pred[vi]))
+        ath_estimator = _ath.create_estimator(threshold_X[ti], threshold_y[ti])
+        thresholds[vi] = ath_estimator.predict(threshold_X[vi])
     _evaluation.log_evaluation(y, pred, print_fn=logger.info, threshold=thresholds)
+    ath_estimator = _ath.create_estimator(threshold_X, threshold_y)
+    joblib.dump(ath_estimator, MODELS_DIR / 'ath_estimator.pkl')
 
 @tk.log.trace()
 def _predict():
