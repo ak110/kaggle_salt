@@ -8,11 +8,11 @@
 
 ## TODO
 
-- cross-pseudo-labeling: XyをNoneにしたデータを一定数入れといてgenで処理。cv-index +1のモデルでやると、2,3週はいけるはず。
 
 
 ## memo
 
+- cross-pseudo-labeling (+0.010)
 - R,G=input B=depth (-0.010)
 - gate (-0.006)
 - mixup (-0.002)
