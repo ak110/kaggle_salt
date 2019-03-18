@@ -113,7 +113,7 @@ def _create_network():
     x = tk.dl.layers.pad2d()(((5, 6), (5, 6)), mode='reflect')(x)  # 112
     x = keras.layers.concatenate([x, x, x])
     base_network = tk.applications.darknet53.darknet53(include_top=False, input_tensor=x, for_small=True)
-    lr_multipliers = {l: 0.1 for l in base_network.layers}
+    lr_multipliers = {}  # {l: 0.1 for l in base_network.layers}
     down_list = []
     down_list.append(base_network.get_layer(name='add_1').output)  # stage 1: 112
     down_list.append(base_network.get_layer(name='add_3').output)  # stage 2: 56
@@ -122,8 +122,7 @@ def _create_network():
     down_list.append(base_network.get_layer(name='add_23').output)  # stage 5: 7
 
     x = base_network.outputs[0]
-    x = builder.conv2d(16 * 16, 3, use_bn=False, use_act=False)(x)
-    x = tk.dl.layers.subpixel_conv2d()(scale=16)(x)
+    x = builder.conv2dtr(1, 32, strides=16, use_bn=False, use_act=False)(x)  # 112
     x = keras.layers.Cropping2D(((5, 6), (5, 6)))(x)  # 101
     x = keras.layers.Activation('sigmoid')(x)
     network = keras.models.Model(inputs, x)

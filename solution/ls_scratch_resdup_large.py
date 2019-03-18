@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Decoderを単純にしてみたやつ。
-
-https://arxiv.org/abs/1903.02120
-
-"""
+"""late submit用ベースライン。(転移学習無し)"""
 import argparse
 import pathlib
 
@@ -112,21 +108,54 @@ def _create_network():
     x = builder.preprocess(mode='div255')(x)
     x = tk.dl.layers.pad2d()(((5, 6), (5, 6)), mode='reflect')(x)  # 112
     x = keras.layers.concatenate([x, x, x])
-    base_network = tk.applications.darknet53.darknet53(include_top=False, input_tensor=x, for_small=True)
-    lr_multipliers = {l: 0.1 for l in base_network.layers}
-    down_list = []
-    down_list.append(base_network.get_layer(name='add_1').output)  # stage 1: 112
-    down_list.append(base_network.get_layer(name='add_3').output)  # stage 2: 56
-    down_list.append(base_network.get_layer(name='add_11').output)  # stage 3: 28
-    down_list.append(base_network.get_layer(name='add_19').output)  # stage 4: 14
-    down_list.append(base_network.get_layer(name='add_23').output)  # stage 5: 7
 
-    x = base_network.outputs[0]
+    x = tk.dl.layers.coord_channel_2d()(x_channel=False)(x)
+    x = builder.conv2d(64, 3, use_act=False)(x)
+    x = builder.res_block(64)(x)
+    x = builder.res_block(64)(x)
+    x = builder.res_block(64)(x)
+    x = builder.res_block(64)(x)
+    x = builder.bn_act()(x)
+    x = builder.scse_block(64)(x)
+    x = tk.dl.layers.coord_channel_2d()(x_channel=False)(x)
+    x = builder.conv2d(128, 3, strides=2, use_act=False)(x)  # 56
+    x = builder.res_block(128)(x)
+    x = builder.res_block(128)(x)
+    x = builder.res_block(128)(x)
+    x = builder.res_block(128)(x)
+    x = builder.bn_act()(x)
+    x = builder.scse_block(128)(x)
+    x = tk.dl.layers.coord_channel_2d()(x_channel=False)(x)
+    x = builder.conv2d(256, 3, strides=2, use_act=False)(x)  # 28
+    x = builder.res_block(256)(x)
+    x = builder.res_block(256)(x)
+    x = builder.res_block(256)(x)
+    x = builder.res_block(256)(x)
+    x = builder.bn_act()(x)
+    x = builder.scse_block(256)(x)
+    x = tk.dl.layers.coord_channel_2d()(x_channel=False)(x)
+    x = builder.conv2d(512, 3, strides=2, use_act=False)(x)  # 14
+    x = builder.res_block(512)(x)
+    x = builder.res_block(512)(x)
+    x = builder.res_block(512)(x)
+    x = builder.res_block(512)(x)
+    x = builder.bn_act()(x)
+    x = builder.scse_block(512)(x)
+    x = tk.dl.layers.coord_channel_2d()(x_channel=False)(x)
+    x = builder.conv2d(1024, 3, strides=2, use_act=False)(x)  # 7
+    x = builder.res_block(1024)(x)
+    x = builder.res_block(1024)(x)
+    x = builder.res_block(1024)(x)
+    x = builder.res_block(1024)(x)
+    x = builder.bn_act()(x)
+    x = builder.scse_block(1024)(x)
+    x = tk.dl.layers.coord_channel_2d()(x_channel=False)(x)
     x = builder.conv2d(16 * 16, 3, use_bn=False, use_act=False)(x)
     x = tk.dl.layers.subpixel_conv2d()(scale=16)(x)
     x = keras.layers.Cropping2D(((5, 6), (5, 6)))(x)  # 101
     x = keras.layers.Activation('sigmoid')(x)
     network = keras.models.Model(inputs, x)
+    lr_multipliers = {}  # {l: 0.1 for l in base_network.layers}
     return network, lr_multipliers
 
 

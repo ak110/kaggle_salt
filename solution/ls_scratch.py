@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Decoderを単純にしてみたやつ。
-
-https://arxiv.org/abs/1903.02120
-
-"""
+"""late submit用ベースライン。(転移学習無し)"""
 import argparse
 import pathlib
 
@@ -112,8 +108,8 @@ def _create_network():
     x = builder.preprocess(mode='div255')(x)
     x = tk.dl.layers.pad2d()(((5, 6), (5, 6)), mode='reflect')(x)  # 112
     x = keras.layers.concatenate([x, x, x])
-    base_network = tk.applications.darknet53.darknet53(include_top=False, input_tensor=x, for_small=True)
-    lr_multipliers = {l: 0.1 for l in base_network.layers}
+    base_network = tk.applications.darknet53.darknet53(include_top=False, input_tensor=x, for_small=True, weights=None)
+    lr_multipliers = {}  # {l: 0.1 for l in base_network.layers}
     down_list = []
     down_list.append(base_network.get_layer(name='add_1').output)  # stage 1: 112
     down_list.append(base_network.get_layer(name='add_3').output)  # stage 2: 56
@@ -122,10 +118,43 @@ def _create_network():
     down_list.append(base_network.get_layer(name='add_23').output)  # stage 5: 7
 
     x = base_network.outputs[0]
-    x = builder.conv2d(16 * 16, 3, use_bn=False, use_act=False)(x)
-    x = tk.dl.layers.subpixel_conv2d()(scale=16)(x)
+    x = keras.layers.GlobalAveragePooling2D()(x)
+    x = builder.dense(256)(x)
+    x = builder.act()(x)
+    x = builder.dense(7 * 7 * 32)(x)
+    x = builder.act()(x)
+    x = keras.layers.Reshape((1, 1, -1))(x)
+
+    up_list = []
+    for stage, (d, filters) in list(enumerate(zip(down_list, [32, 64, 128, 256, 512])))[::-1]:
+        x = tk.dl.layers.subpixel_conv2d()(scale=2 if stage != 4 else 7)(x)
+        x = builder.conv2d(filters, 1, use_act=False)(x)
+        d = tk.dl.layers.coord_channel_2d()(x_channel=False)(d)
+        d = builder.conv2d(filters, 1, use_act=False)(d)
+        x = keras.layers.add([x, d])
+        x = builder.res_block(filters)(x)
+        x = builder.res_block(filters)(x)
+        x = builder.bn_act()(x)
+        x = builder.scse_block(filters)(x)
+        up_list.append(builder.conv2d(32, 1)(x))
+
+    x = keras.layers.concatenate([
+        tk.dl.layers.resize2d()((112, 112))(up_list[0]),
+        tk.dl.layers.resize2d()((112, 112))(up_list[1]),
+        tk.dl.layers.resize2d()((112, 112))(up_list[2]),
+        tk.dl.layers.resize2d()((112, 112))(up_list[3]),
+        up_list[4],
+    ])  # 112
+    x = tk.dl.layers.coord_channel_2d()(x_channel=False)(x)
+
+    x = builder.conv2d(64, use_act=False)(x)
+    x = builder.res_block(64)(x)
+    x = builder.res_block(64)(x)
+    x = builder.res_block(64)(x)
+    x = builder.bn_act()(x)
+
     x = keras.layers.Cropping2D(((5, 6), (5, 6)))(x)  # 101
-    x = keras.layers.Activation('sigmoid')(x)
+    x = builder.conv2d(1, use_bias=True, use_bn=False, activation='sigmoid')(x)
     network = keras.models.Model(inputs, x)
     return network, lr_multipliers
 
