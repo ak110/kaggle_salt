@@ -1,6 +1,5 @@
-input/*/
-input/*.zip
-input/*.csv
+input
+input/
 solution/cache/
 solution/models/
 solution/models_*/
